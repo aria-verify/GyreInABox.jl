@@ -1,6 +1,7 @@
 [deps]
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 GyreInABox = "d40f67ff-4a83-48da-8213-065d3ac3739e"
+Oceananigans = "9e8cae18-63c1-5223-a75c-80ca9d6e9a09"
 
 [sources]
 GyreInABox = {path = ".."}
