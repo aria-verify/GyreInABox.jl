@@ -92,16 +92,24 @@ $(TYPEDFIELDS)
     Q::T = 200.
     "Sea water specific heat capacity / J K⁻¹ kg⁻¹"
     cᴾ::T = 3991.
-    "Vertical temperature gradient coefficient / K m⁻¹"
-    dTdz::T = 0.01
+    "Ocean-atmosphere heat transfer coefficient / W m⁻² K⁻¹"
+    h::T = 25.
+    "Reference polar surface temperature / °C"
+    T_pole::T = 0.
+    "Reference equatorial surface temperature / °C"
+    T_equator::T = 30.
+    "Reference deep ocean temperature / °C"
+    T_deep::T = 2.
+    "Thermocline reference depth / m"
+    z₀::T = -1000.
+    "Thermocline reference length scale / m"
+    ℓ::T = 500.
     "Salinity surface evaporation rate / m s⁻¹"
     evaporation_rate::T = 1e-3 / hour
     "Initial constant salinity level / g kg⁻¹"
     initial_salinity::T = 35.
     "Coefficient scaling amplitude of noise in initial temperature field / K"
     initial_temperature_noise_scale::T = 5e-6
-    "Initial surface temperature / °C"
-    initial_surface_temperature::T = 20.
     "Coefficient scaling amplitude of noise in initial velocity field / m s⁻¹"
     initial_velocity_noise_scale::T = 5e-4
 end
@@ -284,9 +292,11 @@ Computes surface salinity evaporation rate at horizontal grid indices `i` and `j
 grid `grid` and model clock `clock`, with current model fields `model_fields` and
 parameters `p`.
 """
-@inline Jˢ(i, j, grid, clock, model_fields, p::GyreInABoxParameters) = (
-    -p.evaporation_rate * model_fields.S[i, j, end]
-)
+@inline function surface_salinity_flux(
+    i, j, grid, clock, model_fields, p::GyreInABoxParameters
+) 
+    @inbounds -p.evaporation_rate * model_fields.S[i, j, end]
+end
 
 """
 Bottom surface drag on zonal velocity component in m² s⁻².
@@ -298,7 +308,7 @@ $(SIGNATURES)
 Computes bottom surface drag at horizontal grid indices `i` and `j` for grid `grid` and
 model clock `clock`, with current model fields `model_fields` and parameters `p`.
 """
-@inline u_drag(i, j, grid, clock, model_fields, p) = -p.μ * model_fields.u[i, j, 1]
+@inline u_drag(i, j, grid, clock, model_fields, p) = @inbounds -p.μ * model_fields.u[i, j, 1]
 
 """
 Bottom surface drag on meridional velocity component in m² s⁻².
@@ -310,21 +320,48 @@ $(SIGNATURES)
 Computes bottom surface drag at horizontal grid indices `i` and `j` for grid `grid` and
 model clock `clock`, with current model fields `model_fields` and parameters `p`.
 """
-@inline v_drag(i, j, grid, clock, model_fields, p) = -p.μ * model_fields.v[i, j, 1]
+@inline v_drag(i, j, grid, clock, model_fields, p) = @inbounds -p.μ * model_fields.v[i, j, 1]
+
+
+"""
+Reference surface temperature for restoring surface temperature boundary condition as
+function of latitude `φ`` and parameters `p`.
+
+$(SIGNATURES)
+"""
+@inline function reference_surface_temperature(φ, p::GyreInABoxParameters)
+    p.T_pole + (p.T_equator - p.T_pole) * cosd(φ)^2
+end
 
 """
 Surface temperature flux given parameters `p` in  K m s⁻¹.
 
 $(SIGNATURES)
+
+## Details
+
+Relaxation boundary condition that restores surface temperature to latitude dependent
+profile determined by `reference_surface_temperature` with relaxation rate
+`h / (ρ₀ * cₚ)` where `h` is the heat transfer coefficient, `ρ₀` seawater density and
+`cₚ` seawater specific heat capacity.
 """
-@inline Jᵀ(p::GyreInABoxParameters) = p.Q / (p.ρₒ * p.cᴾ)
+@inline function surface_temperature_flux(
+    i, j, grid, clock, model_fields, p::GyreInABoxParameters
+) 
+    φ = φnode(i, j, 1, grid, Face(), Center(), Center())
+    @inbounds  (
+        model_fields.T[i, j, end] - reference_surface_temperature(φ, p)
+    ) * p.h / (p.ρₒ * p.cᴾ)
+end
 
 """
 Maximal surface wind stress given parameters `p` in m² s⁻².
 
 $(SIGNATURES)
 """
-@inline τ₀(p::GyreInABoxParameters) = -p.ρₐ / p.ρₒ * p.cᴰ * p.u₁₀ * abs(p.u₁₀)
+@inline function max_surface_wind_stress(p::GyreInABoxParameters)
+    -p.ρₐ / p.ρₒ * p.cᴰ * p.u₁₀ * abs(p.u₁₀)
+end
 
 """
 Zonal wind stress applied as surface (flux) boundary condition to velocity field.
@@ -337,7 +374,7 @@ Computes wind stress in zonal direction at longitude `λ` and latitude `φ` (bot
 degrees), time `t` and with model parameters `p`.
 """
 function zonal_wind_stress(λ, φ, t, p::GyreInABoxParameters)
-    return -τ₀(p) * cos(2π * (φ - p.φ₀) / p.Lφ)
+    return -max_surface_wind_stress(p) * cos(2π * (φ - p.φ₀) / p.Lφ)
 end
 
 """
@@ -358,9 +395,15 @@ function boundary_conditions(parameters::GyreInABoxParameters{T}) where {T}
         east=no_slip_bc,
         west=no_slip_bc
     )
-    T_bcs = FieldBoundaryConditions(top=FluxBoundaryCondition(Jᵀ(parameters)))
+    T_bcs = FieldBoundaryConditions(
+        top=FluxBoundaryCondition(
+            surface_temperature_flux; discrete_form=true, parameters
+        )
+    )
     S_bcs = FieldBoundaryConditions(
-        top=FluxBoundaryCondition(Jˢ, discrete_form=true, parameters=parameters)
+        top=FluxBoundaryCondition(
+            surface_salinity_flux, discrete_form=true, parameters=parameters
+        )
     )
     return (; u=u_bcs, v=v_bcs, T=T_bcs, S=S_bcs)
 end
@@ -411,6 +454,23 @@ function setup_model(
 end
 
 """
+Thermocline temperature profile at latitude `φ` and depth `z` with parameters `p`.
+
+$(SIGNATURES)
+
+## Details
+
+Computes a latitude and depth dependent temperature with thermocline like profile
+which smoothly varies from a latitude dependent surface temperature to a constant
+deep ocean temperature with a sigmoidal profile.
+"""
+function thermocline_temperature_profile(φ, z, p)
+    p.T_deep + (
+        reference_surface_temperature(φ, p) - p.T_deep
+    ) * (1 + tanh((z - p.z₀) / p.ℓ)) / 2
+end
+
+"""
 Initialize state of ocean gyre model `model` with parameters `parameters` and random
 variables generated using random number generator `rng`.
 
@@ -423,14 +483,15 @@ function initialize_model!(
 ) where {T,R<:AbstractRNG}
     # Random noise with scale modulated vertically to reduce to zero at top and bottom
     Ξ(z) = randn(rng) * 4. * abs(z / model.grid.Lz) * (1 - abs(z / model.grid.Lz))
-    # Temperature initial condition: vertical linear trend with random noise superposed
+    # Temperature initial condition: latitude dependent thermocline with random noise
+    # superposed
     Tᵢ(λ, φ, z) = (
-        parameters.initial_surface_temperature + parameters.dTdz * z
+        thermocline_temperature_profile(φ, z, p)
         + parameters.initial_temperature_noise_scale * Ξ(z)
     )
     # Velocity initial condition: random noise scaled by the maximum surface stress.
     uᵢ(λ, φ, z) = sqrt(
-        abs(τ₀(parameters))
+        abs(max_surface_wind_stress(parameters))
     ) * parameters.initial_velocity_noise_scale * Ξ(z)
     set!(model, u=uᵢ, v=uᵢ, T=Tᵢ, S=parameters.initial_salinity)
     nothing
