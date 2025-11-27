@@ -689,7 +689,11 @@ Label for horizontal axis for field heatmaps.
     
 $(TYPEDSIGNATURES)
 """
-axis_xlabel(output_type::AbstractOutputType) = "Longitude λ (ᵒ)"
+function axis_xlabel(::AbstractOutputType) end
+
+axis_xlabel(::AbstractHorizontalOutputType) = "Longitude λ (ᵒ)"
+axis_xlabel(::LongitudeDepthSlice) = "Longitude λ (ᵒ)"
+axis_xlabel(::LatitudeDepthSlice) = "Latitude ϕ (ᵒ)"
 
 """
 Label for vertical axis for field heatmaps.
@@ -698,8 +702,8 @@ $(TYPEDSIGNATURES)
 """
 function axis_ylabel(::AbstractOutputType) end
 
-axis_ylabel(output_type::AbstractHorizontalOutputType) = "Latitude ϕ (ᵒ)"
-axis_ylabel(output_type::AbstractVerticalOutputType) = "Depth z (m)"
+axis_ylabel(::AbstractHorizontalOutputType) = "Latitude ϕ (ᵒ)"
+axis_ylabel(::AbstractVerticalOutputType) = "Depth z (m)"
 
 
 """
