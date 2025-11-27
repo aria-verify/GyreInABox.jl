@@ -47,6 +47,7 @@ using DocStringExtensions
 using Oceananigans
 using Oceananigans.Advection
 using Oceananigans.Coriolis
+using Oceananigans.Grids
 using Oceananigans.TurbulenceClosures
 using Oceananigans.Units
 using SeawaterPolynomials: TEOS10EquationOfState
