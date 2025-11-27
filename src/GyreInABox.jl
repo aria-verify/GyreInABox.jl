@@ -139,7 +139,7 @@ $(TYPEDFIELDS)
     "Depth of slice / m"
     depth::T = 0.
     "Time interval to record output at / s"
-    interval::T = 60minute
+    interval::T = 6hour
 end
 
 """
@@ -160,7 +160,7 @@ $(TYPEDFIELDS)
     "Latitude of slice / °"
     latitude::T = 45.
     "Time interval to record output at / s"
-    interval::T = 60minute
+    interval::T = 6hour
 end
 
 """
@@ -181,7 +181,7 @@ $(TYPEDFIELDS)
     "Longitude of slice / °"
     longitude::T = 30.
     "Time interval to record output at / s"
-    interval::T = 60minute
+    interval::T = 6hour
 end
 
 """
@@ -276,7 +276,12 @@ $(TYPEDFIELDS)
     "Maximum relative time step change in each wizard update"
     wizard_max_change::T = 1.5
     "Output types to record during simulation"
-    output_types::Tuple = (HorizontalSlice(), LongitudeDepthSlice(), DepthTimeAveraged())
+    output_types::Tuple = (
+        HorizontalSlice(),
+        LongitudeDepthSlice(),
+        LatitudeDepthSlice(),
+        DepthTimeAveraged()
+    )
 end
 
 # Use discrete form for field-dependent boundary condition due
