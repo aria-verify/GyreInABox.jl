@@ -487,7 +487,7 @@ function initialize_model!(
     # Temperature initial condition: latitude dependent thermocline with random noise
     # superposed
     Tᵢ(λ, φ, z) = (
-        thermocline_temperature_profile(φ, z, p)
+        thermocline_temperature_profile(φ, z, parameters)
         + parameters.initial_temperature_noise_scale * Ξ(z)
     )
     # Velocity initial condition: random noise scaled by the maximum surface stress.
