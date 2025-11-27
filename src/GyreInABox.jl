@@ -99,11 +99,11 @@ $(TYPEDFIELDS)
     "Initial constant salinity level / g kg⁻¹"
     initial_salinity::T = 35.
     "Coefficient scaling amplitude of noise in initial temperature field / K"
-    initial_temperature_noise_scale::T = 1e-6
+    initial_temperature_noise_scale::T = 5e-6
     "Initial surface temperature / °C"
     initial_surface_temperature::T = 20.
     "Coefficient scaling amplitude of noise in initial velocity field / m s⁻¹"
-    initial_velocity_noise_scale::T = 1e-2
+    initial_velocity_noise_scale::T = 5e-4
 end
 
 abstract type AbstractOutputType{T} end
@@ -358,10 +358,7 @@ function boundary_conditions(parameters::GyreInABoxParameters{T}) where {T}
         east=no_slip_bc,
         west=no_slip_bc
     )
-    T_bcs = FieldBoundaryConditions(
-        top=FluxBoundaryCondition(Jᵀ(parameters)),
-        bottom=GradientBoundaryCondition(parameters.dTdz)
-    )
+    T_bcs = FieldBoundaryConditions(top=FluxBoundaryCondition(Jᵀ(parameters)))
     S_bcs = FieldBoundaryConditions(
         top=FluxBoundaryCondition(Jˢ, discrete_form=true, parameters=parameters)
     )
@@ -424,13 +421,12 @@ function initialize_model!(
     parameters::GyreInABoxParameters{T},
     rng::R
 ) where {T,R<:AbstractRNG}
-    # Random noise with scale modulated vertically to reduce at top and bottom
-    Ξ(z) = randn(rng) * z / model.grid.Lz * (1 + z / model.grid.Lz)
+    # Random noise with scale modulated vertically to reduce to zero at top and bottom
+    Ξ(z) = randn(rng) * 4. * abs(z / model.grid.Lz) * (1 - abs(z / model.grid.Lz))
     # Temperature initial condition: vertical linear trend with random noise superposed
     Tᵢ(λ, φ, z) = (
         parameters.initial_surface_temperature + parameters.dTdz * z
-        + parameters.dTdz * model.grid.Lz
-        * parameters.initial_temperature_noise_scale * Ξ(z)
+        + parameters.initial_temperature_noise_scale * Ξ(z)
     )
     # Velocity initial condition: random noise scaled by the maximum surface stress.
     uᵢ(λ, φ, z) = sqrt(
