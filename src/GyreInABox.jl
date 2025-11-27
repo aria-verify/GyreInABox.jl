@@ -309,7 +309,11 @@ $(SIGNATURES)
 Computes bottom surface drag at horizontal grid indices `i` and `j` for grid `grid` and
 model clock `clock`, with current model fields `model_fields` and parameters `p`.
 """
-@inline u_drag(i, j, grid, clock, model_fields, p) = @inbounds -p.μ * model_fields.u[i, j, 1]
+@inline function bottom_zonal_drag(
+    i, j, grid, clock, model_fields, p::GyreInABoxParameters
+) 
+    @inbounds -p.μ * model_fields.u[i, j, 1]
+end
 
 """
 Bottom surface drag on meridional velocity component in m² s⁻².
@@ -321,8 +325,11 @@ $(SIGNATURES)
 Computes bottom surface drag at horizontal grid indices `i` and `j` for grid `grid` and
 model clock `clock`, with current model fields `model_fields` and parameters `p`.
 """
-@inline v_drag(i, j, grid, clock, model_fields, p) = @inbounds -p.μ * model_fields.v[i, j, 1]
-
+@inline function bottom_meridional_drag(
+    i, j, grid, clock, model_fields, p::GyreInABoxParameters
+)
+    @inbounds -p.μ * model_fields.v[i, j, 1]
+end
 
 """
 Reference surface temperature for restoring surface temperature boundary condition as
@@ -387,12 +394,14 @@ function boundary_conditions(parameters::GyreInABoxParameters{T}) where {T}
     no_slip_bc = ValueBoundaryCondition(0)
     u_bcs = FieldBoundaryConditions(
         top=FluxBoundaryCondition(zonal_wind_stress; parameters=parameters),
-        bottom=FluxBoundaryCondition(u_drag; discrete_form=true, parameters),
+        bottom=FluxBoundaryCondition(bottom_zonal_drag; discrete_form=true, parameters),
         north=no_slip_bc,
         south=no_slip_bc
     )
     v_bcs = FieldBoundaryConditions(
-        bottom=FluxBoundaryCondition(v_drag; discrete_form=true, parameters),
+        bottom=FluxBoundaryCondition(
+            bottom_meridional_drag; discrete_form=true, parameters
+        ),
         east=no_slip_bc,
         west=no_slip_bc
     )
@@ -419,9 +428,8 @@ function hyperbolically_spaced_faces(k::Int, configuration::GyreInABoxConfigurat
     configuration.depth_interval[2] + (
         configuration.depth_interval[1] - configuration.depth_interval[2]
     ) * (
-        1 - tanh(configuration.depth_stretching_factor * (k - 1)
-                 /
-                 configuration.grid_size[3]
+        1 - tanh(
+            configuration.depth_stretching_factor * (k - 1) / configuration.grid_size[3]
         ) / tanh(configuration.depth_stretching_factor)
     )
 end
