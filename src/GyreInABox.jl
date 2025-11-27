@@ -607,7 +607,8 @@ function add_output_writers!(
                 filename=output_filename(configuration, output_type),
                 indices=indices(output_type, model),
                 schedule=schedule(output_type),
-                overwrite_existing=true
+                overwrite_existing=true,
+                with_halos=true,
             )
         end
     end
