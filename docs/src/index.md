@@ -9,13 +9,15 @@ Documentation for [GyreInABox](https://github.com/aria-verify/GyreInABox.jl).
 ## Usage example
 
 The below example illustrates setting up and running a simulation of the model with the
-default parameter values, and default configuration modulo reduction of spatial
-resolution to $60\times 60 \times 25$ and the simulation time to 6 hours and changing
+default parameter values, and default configuration modulo reduction of the spatial
+resolution to $60\times 60 \times 25$, the simulation time to 6 hours and changing
 the model to record only a depth slice along longitude axis as outputs. The resulting
-depth slices of simulated fields are recorded as an animation using CairoMakie.
+depth slices of simulated fields are recorded as an animation using CairoMakie. The
+simulation time here is too short for the simulated fields to show any interesting
+behaviour, with this example just meant to illustrate the overall workflow while
+remaining relatively cheap to run.
 
 ```@example
-
 using Oceananigans.Units
 using GyreInABox
 
