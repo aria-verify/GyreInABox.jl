@@ -301,7 +301,7 @@ parameters `p`.
 @inline function surface_salinity_flux(
     i, j, grid, clock, model_fields, p::GyreInABoxParameters
 ) 
-    @inbounds -p.evaporation_rate * model_fields.S[i, j, end]
+    @inbounds -p.evaporation_rate * model_fields.S[i, j, grid.Nz]
 end
 
 """
@@ -363,7 +363,7 @@ profile determined by `reference_surface_temperature` with relaxation rate
 ) 
     φ = φnode(i, j, 1, grid, Face(), Center(), Center())
     @inbounds  (
-        model_fields.T[i, j, end] - reference_surface_temperature(φ, p)
+        model_fields.T[i, j, grid.Nz] - reference_surface_temperature(φ, p)
     ) * p.h / (p.ρₒ * p.cᴾ)
 end
 
