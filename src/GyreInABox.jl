@@ -440,15 +440,16 @@ function hyperbolically_spaced_faces(k::Int, configuration::GyreInABoxConfigurat
 end
 
 """
-Set up ocean gyre model with parameters `parameters` and configuration `configuration`.
+Set up ocean gyre model grid with configuration `configuration` optionally overriding
+architecture in `configuration` with `architecture`.
 
 $(SIGNATURES)
 """
-function setup_model(
-    parameters::GyreInABoxParameters{T}, configuration::GyreInABoxConfiguration{T}
+function setup_grid(
+    configuration::GyreInABoxConfiguration{T}; architecture = nothing
 ) where {T}
-    grid = LatitudeLongitudeGrid(
-        configuration.architecture;
+    LatitudeLongitudeGrid(
+        isnothing(architecture) ? configuration.architecture : architecture,
         size=configuration.grid_size,
         longitude=configuration.longitude_interval,
         latitude=configuration.latitude_interval,
@@ -456,8 +457,18 @@ function setup_model(
         halo=configuration.halo_size,
         topology=(Bounded, Bounded, Bounded)
     )
+end
+
+"""
+Set up ocean gyre model with parameters `parameters` and configuration `configuration`.
+
+$(SIGNATURES)
+"""
+function setup_model(
+    parameters::GyreInABoxParameters{T}, configuration::GyreInABoxConfiguration{T}
+) where {T}
     HydrostaticFreeSurfaceModel(
-        ; grid,
+        ; grid=setup_grid(configuration),
         momentum_advection=configuration.momentum_advection,
         coriolis=configuration.coriolis,
         closure=configuration.closure,
@@ -529,18 +540,18 @@ Spatial grid indices output type records fields at.
 
 $(TYPEDSIGNATURES)
 """
-function indices(type::AbstractOutputType, model) end
+function indices(type::AbstractOutputType, grid) end
 
-indices(type::HorizontalSlice, model) = (
-    :, :, searchsortedfirst(znodes(model.grid, Face(); with_halos=true), type.depth)
+indices(type::HorizontalSlice, grid) = (
+    :, :, clamp(searchsortedfirst(znodes(grid, Face()), type.depth), 1:grid.Nz)
 )
-indices(type::LongitudeDepthSlice, model) = (
-    :, searchsortedfirst(φnodes(model.grid, Face(); with_halos=true), type.latitude), :
+indices(type::LongitudeDepthSlice, grid) = (
+    :, clamp(searchsortedfirst(φnodes(grid, Face()), type.latitude), 1:grid.Ny), :
 )
-indices(type::LatitudeDepthSlice, model) = (
-    searchsortedfirst(λnodes(model.grid, Face(); with_halos=true), type.longitude), :, :
+indices(type::LatitudeDepthSlice, grid) = (
+    clamp(searchsortedfirst(λnodes(grid, Face()), type.longitude), 1:grid.Nx), :, :
 )
-indices(::DepthTimeAveraged, model) = (:, :, :)
+indices(::DepthTimeAveraged, grid) = (:, :, :)
 
 """
 Named tuple of output variables (fields) to record for output type.
@@ -598,6 +609,13 @@ function add_output_writers!(
 ) where {T}
 
     model = simulation.model
+    # Create a grid on CPU if not already to avoid issues with computing output field
+    # indices from grid using scalar operations on GPU grids
+    grid = (
+        isa(configuration.architecture, CPU) 
+        ? model.grid 
+        : setup_grid(configuration, architecure=CPU())
+    )
 
     for output_type in configuration.output_types
         if output_type.interval <= configuration.simulation_time
@@ -605,7 +623,7 @@ function add_output_writers!(
                 model,
                 outputs(output_type, model),
                 filename=output_filename(configuration, output_type),
-                indices=indices(output_type, model),
+                indices=indices(output_type, grid),
                 schedule=schedule(output_type),
                 overwrite_existing=true,
                 with_halos=true,
