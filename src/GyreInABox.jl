@@ -614,7 +614,7 @@ function add_output_writers!(
     grid = (
         isa(configuration.architecture, CPU) 
         ? model.grid 
-        : setup_grid(configuration, architecure=CPU())
+        : setup_grid(configuration, architecture=CPU())
     )
 
     for output_type in configuration.output_types
