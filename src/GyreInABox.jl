@@ -310,10 +310,10 @@ Relaxation boundary condition that restores surface salinity to latitude depende
 profile determined by `reference_surface_salinity`.
 """
 @inline function surface_salinity_flux(
-    i, j, grid, clock, model_fields, p::GyreInABoxParameters
+    i, j, grid, clock, model_fields, parameters_and_Δz
 ) 
+    p, Δz = parameters_and_Δz
     φ = φnode(i, j, 1, grid, Center(), Center(), Center())
-    Δz = minimum_zspacing(grid)
     @inbounds  (
         model_fields.S[i, j, grid.Nz] - reference_surface_salinity(φ, p)
     ) * Δz / p.τ_S
@@ -362,7 +362,7 @@ $(SIGNATURES)
 end
 
 """
-Surface temperature flux given parameters `p` in  K m s⁻¹.
+Surface temperature flux in  K m s⁻¹.
 
 $(SIGNATURES)
 
@@ -372,10 +372,10 @@ Relaxation boundary condition that restores surface temperature to latitude depe
 profile determined by `reference_surface_temperature`.
 """
 @inline function surface_temperature_flux(
-    i, j, grid, clock, model_fields, p::GyreInABoxParameters
+    i, j, grid, clock, model_fields, parameters_and_Δz
 ) 
+    p, Δz = parameters_and_Δz
     φ = φnode(i, j, 1, grid, Center(), Center(), Center())
-    Δz = minimum_zspacing(grid)
     @inbounds  (
         model_fields.T[i, j, grid.Nz] - reference_surface_temperature(φ, p)
     ) * Δz / p.τ_T
@@ -409,7 +409,10 @@ Construct named tuple of boundary conditions for model given parameters `paramet
 
 $(SIGNATURES)
 """
-function boundary_conditions(parameters::GyreInABoxParameters{T}) where {T}
+function boundary_conditions(
+    parameters::GyreInABoxParameters{T}, grid::AbstractGrid
+) where {T}
+    Δz = minimum_zspacing(grid)
     no_slip_bc = ValueBoundaryCondition(0)
     u_bcs = FieldBoundaryConditions(
         top=FluxBoundaryCondition(zonal_wind_stress; parameters=parameters),
@@ -426,12 +429,12 @@ function boundary_conditions(parameters::GyreInABoxParameters{T}) where {T}
     )
     T_bcs = FieldBoundaryConditions(
         top=FluxBoundaryCondition(
-            surface_temperature_flux; discrete_form=true, parameters
+            surface_temperature_flux; discrete_form=true, parameters=(parameters, Δz)
         )
     )
     S_bcs = FieldBoundaryConditions(
         top=FluxBoundaryCondition(
-            surface_salinity_flux, discrete_form=true, parameters=parameters
+            surface_salinity_flux, discrete_form=true, parameters=(parameters, Δz)
         )
     )
     return (; u=u_bcs, v=v_bcs, T=T_bcs, S=S_bcs)
@@ -481,13 +484,14 @@ $(SIGNATURES)
 function setup_model(
     parameters::GyreInABoxParameters{T}, configuration::GyreInABoxConfiguration{T}
 ) where {T}
+    grid = setup_grid(configuration)
     HydrostaticFreeSurfaceModel(
-        ; grid=setup_grid(configuration),
+        ; grid,
         momentum_advection=configuration.momentum_advection,
         coriolis=configuration.coriolis,
         closure=configuration.closure,
         buoyancy=SeawaterBuoyancy(; equation_of_state=configuration.equation_of_state),
-        boundary_conditions=boundary_conditions(parameters),
+        boundary_conditions=boundary_conditions(parameters, grid),
         tracers=configuration.tracers
     )
 end
