@@ -26,6 +26,10 @@ jobs:
           - '1.12'
           - '1.10'
           - 'pre'
+        os:
+          - ubuntu-latest
+          - macOS-latest
+          - windows-latest
         include:
           - os: ubuntu-latest
             arch: x64
