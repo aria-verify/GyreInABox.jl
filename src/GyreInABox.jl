@@ -47,6 +47,7 @@ using DocStringExtensions
 using Oceananigans
 using Oceananigans.Advection
 using Oceananigans.Coriolis
+using Oceananigans.Grids
 using Oceananigans.TurbulenceClosures
 using Oceananigans.Units
 using SeawaterPolynomials: TEOS10EquationOfState
@@ -92,18 +93,26 @@ $(TYPEDFIELDS)
     Q::T = 200.
     "Sea water specific heat capacity / J K⁻¹ kg⁻¹"
     cᴾ::T = 3991.
-    "Vertical temperature gradient coefficient / K m⁻¹"
-    dTdz::T = 0.01
+    "Ocean-atmosphere heat transfer coefficient / W m⁻² K⁻¹"
+    h::T = 25.
+    "Reference polar surface temperature / °C"
+    T_pole::T = 0.
+    "Reference equatorial surface temperature / °C"
+    T_equator::T = 30.
+    "Reference deep ocean temperature / °C"
+    T_deep::T = 2.
+    "Thermocline reference depth / m"
+    z₀::T = -1000.
+    "Thermocline reference length scale / m"
+    ℓ::T = 500.
     "Salinity surface evaporation rate / m s⁻¹"
     evaporation_rate::T = 1e-3 / hour
     "Initial constant salinity level / g kg⁻¹"
     initial_salinity::T = 35.
     "Coefficient scaling amplitude of noise in initial temperature field / K"
-    initial_temperature_noise_scale::T = 1e-6
-    "Initial surface temperature / °C"
-    initial_surface_temperature::T = 20.
+    initial_temperature_noise_scale::T = 5e-6
     "Coefficient scaling amplitude of noise in initial velocity field / m s⁻¹"
-    initial_velocity_noise_scale::T = 1e-2
+    initial_velocity_noise_scale::T = 5e-4
 end
 
 abstract type AbstractOutputType{T} end
@@ -130,7 +139,7 @@ $(TYPEDFIELDS)
     "Depth of slice / m"
     depth::T = 0.
     "Time interval to record output at / s"
-    interval::T = 60minute
+    interval::T = 6hour
 end
 
 """
@@ -151,7 +160,7 @@ $(TYPEDFIELDS)
     "Latitude of slice / °"
     latitude::T = 45.
     "Time interval to record output at / s"
-    interval::T = 60minute
+    interval::T = 6hour
 end
 
 """
@@ -172,7 +181,7 @@ $(TYPEDFIELDS)
     "Longitude of slice / °"
     longitude::T = 30.
     "Time interval to record output at / s"
-    interval::T = 60minute
+    interval::T = 6hour
 end
 
 """
@@ -267,7 +276,12 @@ $(TYPEDFIELDS)
     "Maximum relative time step change in each wizard update"
     wizard_max_change::T = 1.5
     "Output types to record during simulation"
-    output_types::Tuple = (HorizontalSlice(), LongitudeDepthSlice(), DepthTimeAveraged())
+    output_types::Tuple = (
+        HorizontalSlice(),
+        LongitudeDepthSlice(),
+        LatitudeDepthSlice(),
+        DepthTimeAveraged()
+    )
 end
 
 # Use discrete form for field-dependent boundary condition due
@@ -284,9 +298,11 @@ Computes surface salinity evaporation rate at horizontal grid indices `i` and `j
 grid `grid` and model clock `clock`, with current model fields `model_fields` and
 parameters `p`.
 """
-@inline Jˢ(i, j, grid, clock, model_fields, p::GyreInABoxParameters) = (
-    -p.evaporation_rate * model_fields.S[i, j, end]
-)
+@inline function surface_salinity_flux(
+    i, j, grid, clock, model_fields, p::GyreInABoxParameters
+) 
+    @inbounds -p.evaporation_rate * model_fields.S[i, j, grid.Nz]
+end
 
 """
 Bottom surface drag on zonal velocity component in m² s⁻².
@@ -298,7 +314,11 @@ $(SIGNATURES)
 Computes bottom surface drag at horizontal grid indices `i` and `j` for grid `grid` and
 model clock `clock`, with current model fields `model_fields` and parameters `p`.
 """
-@inline u_drag(i, j, grid, clock, model_fields, p) = -p.μ * model_fields.u[i, j, 1]
+@inline function bottom_zonal_drag(
+    i, j, grid, clock, model_fields, p::GyreInABoxParameters
+) 
+    @inbounds -p.μ * model_fields.u[i, j, 1]
+end
 
 """
 Bottom surface drag on meridional velocity component in m² s⁻².
@@ -310,21 +330,51 @@ $(SIGNATURES)
 Computes bottom surface drag at horizontal grid indices `i` and `j` for grid `grid` and
 model clock `clock`, with current model fields `model_fields` and parameters `p`.
 """
-@inline v_drag(i, j, grid, clock, model_fields, p) = -p.μ * model_fields.v[i, j, 1]
+@inline function bottom_meridional_drag(
+    i, j, grid, clock, model_fields, p::GyreInABoxParameters
+)
+    @inbounds -p.μ * model_fields.v[i, j, 1]
+end
+
+"""
+Reference surface temperature for restoring surface temperature boundary condition as
+function of latitude `φ`` and parameters `p`.
+
+$(SIGNATURES)
+"""
+@inline function reference_surface_temperature(φ, p::GyreInABoxParameters)
+    p.T_pole + (p.T_equator - p.T_pole) * cosd(φ)^2
+end
 
 """
 Surface temperature flux given parameters `p` in  K m s⁻¹.
 
 $(SIGNATURES)
+
+## Details
+
+Relaxation boundary condition that restores surface temperature to latitude dependent
+profile determined by `reference_surface_temperature` with relaxation rate
+`h / (ρ₀ * cₚ)` where `h` is the heat transfer coefficient, `ρ₀` seawater density and
+`cₚ` seawater specific heat capacity.
 """
-@inline Jᵀ(p::GyreInABoxParameters) = p.Q / (p.ρₒ * p.cᴾ)
+@inline function surface_temperature_flux(
+    i, j, grid, clock, model_fields, p::GyreInABoxParameters
+) 
+    φ = φnode(i, j, 1, grid, Face(), Center(), Center())
+    @inbounds  (
+        model_fields.T[i, j, grid.Nz] - reference_surface_temperature(φ, p)
+    ) * p.h / (p.ρₒ * p.cᴾ)
+end
 
 """
 Maximal surface wind stress given parameters `p` in m² s⁻².
 
 $(SIGNATURES)
 """
-@inline τ₀(p::GyreInABoxParameters) = -p.ρₐ / p.ρₒ * p.cᴰ * p.u₁₀ * abs(p.u₁₀)
+@inline function max_surface_wind_stress(p::GyreInABoxParameters)
+    -p.ρₐ / p.ρₒ * p.cᴰ * p.u₁₀ * abs(p.u₁₀)
+end
 
 """
 Zonal wind stress applied as surface (flux) boundary condition to velocity field.
@@ -337,7 +387,7 @@ Computes wind stress in zonal direction at longitude `λ` and latitude `φ` (bot
 degrees), time `t` and with model parameters `p`.
 """
 function zonal_wind_stress(λ, φ, t, p::GyreInABoxParameters)
-    return -τ₀(p) * cos(2π * (φ - p.φ₀) / p.Lφ)
+    return -max_surface_wind_stress(p) * cos(2π * (φ - p.φ₀) / p.Lφ)
 end
 
 """
@@ -349,21 +399,26 @@ function boundary_conditions(parameters::GyreInABoxParameters{T}) where {T}
     no_slip_bc = ValueBoundaryCondition(0)
     u_bcs = FieldBoundaryConditions(
         top=FluxBoundaryCondition(zonal_wind_stress; parameters=parameters),
-        bottom=FluxBoundaryCondition(u_drag; discrete_form=true, parameters),
+        bottom=FluxBoundaryCondition(bottom_zonal_drag; discrete_form=true, parameters),
         north=no_slip_bc,
         south=no_slip_bc
     )
     v_bcs = FieldBoundaryConditions(
-        bottom=FluxBoundaryCondition(v_drag; discrete_form=true, parameters),
+        bottom=FluxBoundaryCondition(
+            bottom_meridional_drag; discrete_form=true, parameters
+        ),
         east=no_slip_bc,
         west=no_slip_bc
     )
     T_bcs = FieldBoundaryConditions(
-        top=FluxBoundaryCondition(Jᵀ(parameters)),
-        bottom=GradientBoundaryCondition(parameters.dTdz)
+        top=FluxBoundaryCondition(
+            surface_temperature_flux; discrete_form=true, parameters
+        )
     )
     S_bcs = FieldBoundaryConditions(
-        top=FluxBoundaryCondition(Jˢ, discrete_form=true, parameters=parameters)
+        top=FluxBoundaryCondition(
+            surface_salinity_flux, discrete_form=true, parameters=parameters
+        )
     )
     return (; u=u_bcs, v=v_bcs, T=T_bcs, S=S_bcs)
 end
@@ -378,10 +433,29 @@ function hyperbolically_spaced_faces(k::Int, configuration::GyreInABoxConfigurat
     configuration.depth_interval[2] + (
         configuration.depth_interval[1] - configuration.depth_interval[2]
     ) * (
-        1 - tanh(configuration.depth_stretching_factor * (k - 1)
-                 /
-                 configuration.grid_size[3]
+        1 - tanh(
+            configuration.depth_stretching_factor * (k - 1) / configuration.grid_size[3]
         ) / tanh(configuration.depth_stretching_factor)
+    )
+end
+
+"""
+Set up ocean gyre model grid with configuration `configuration` optionally overriding
+architecture in `configuration` with `architecture`.
+
+$(SIGNATURES)
+"""
+function setup_grid(
+    configuration::GyreInABoxConfiguration{T}; architecture = nothing
+) where {T}
+    LatitudeLongitudeGrid(
+        isnothing(architecture) ? configuration.architecture : architecture,
+        size=configuration.grid_size,
+        longitude=configuration.longitude_interval,
+        latitude=configuration.latitude_interval,
+        z=k -> hyperbolically_spaced_faces(k, configuration),
+        halo=configuration.halo_size,
+        topology=(Bounded, Bounded, Bounded)
     )
 end
 
@@ -393,17 +467,8 @@ $(SIGNATURES)
 function setup_model(
     parameters::GyreInABoxParameters{T}, configuration::GyreInABoxConfiguration{T}
 ) where {T}
-    grid = LatitudeLongitudeGrid(
-        configuration.architecture;
-        size=configuration.grid_size,
-        longitude=configuration.longitude_interval,
-        latitude=configuration.latitude_interval,
-        z=k -> hyperbolically_spaced_faces(k, configuration),
-        halo=configuration.halo_size,
-        topology=(Bounded, Bounded, Bounded)
-    )
     HydrostaticFreeSurfaceModel(
-        ; grid,
+        ; grid=setup_grid(configuration),
         momentum_advection=configuration.momentum_advection,
         coriolis=configuration.coriolis,
         closure=configuration.closure,
@@ -411,6 +476,23 @@ function setup_model(
         boundary_conditions=boundary_conditions(parameters),
         tracers=configuration.tracers
     )
+end
+
+"""
+Thermocline temperature profile at latitude `φ` and depth `z` with parameters `p`.
+
+$(SIGNATURES)
+
+## Details
+
+Computes a latitude and depth dependent temperature with thermocline like profile
+which smoothly varies from a latitude dependent surface temperature to a constant
+deep ocean temperature with a sigmoidal profile.
+"""
+function thermocline_temperature_profile(φ, z, p)
+    p.T_deep + (
+        reference_surface_temperature(φ, p) - p.T_deep
+    ) * (1 + tanh((z - p.z₀) / p.ℓ)) / 2
 end
 
 """
@@ -424,17 +506,17 @@ function initialize_model!(
     parameters::GyreInABoxParameters{T},
     rng::R
 ) where {T,R<:AbstractRNG}
-    # Random noise with scale modulated vertically to reduce at top and bottom
-    Ξ(z) = randn(rng) * z / model.grid.Lz * (1 + z / model.grid.Lz)
-    # Temperature initial condition: vertical linear trend with random noise superposed
+    # Random noise with scale modulated vertically to reduce to zero at top and bottom
+    Ξ(z) = randn(rng) * 4. * abs(z / model.grid.Lz) * (1 - abs(z / model.grid.Lz))
+    # Temperature initial condition: latitude dependent thermocline with random noise
+    # superposed
     Tᵢ(λ, φ, z) = (
-        parameters.initial_surface_temperature + parameters.dTdz * z
-        + parameters.dTdz * model.grid.Lz
-        * parameters.initial_temperature_noise_scale * Ξ(z)
+        thermocline_temperature_profile(φ, z, parameters)
+        + parameters.initial_temperature_noise_scale * Ξ(z)
     )
     # Velocity initial condition: random noise scaled by the maximum surface stress.
     uᵢ(λ, φ, z) = sqrt(
-        abs(τ₀(parameters))
+        abs(max_surface_wind_stress(parameters))
     ) * parameters.initial_velocity_noise_scale * Ξ(z)
     set!(model, u=uᵢ, v=uᵢ, T=Tᵢ, S=parameters.initial_salinity)
     nothing
@@ -458,18 +540,18 @@ Spatial grid indices output type records fields at.
 
 $(TYPEDSIGNATURES)
 """
-function indices(type::AbstractOutputType, model) end
+function indices(type::AbstractOutputType, grid) end
 
-indices(type::HorizontalSlice, model) = (
-    :, :, searchsortedfirst(znodes(model.grid, Face(); with_halos=true), type.depth)
+indices(type::HorizontalSlice, grid) = (
+    :, :, clamp(searchsortedfirst(znodes(grid, Face()), type.depth), 1:grid.Nz)
 )
-indices(type::LongitudeDepthSlice, model) = (
-    :, searchsortedfirst(φnodes(model.grid, Face(); with_halos=true), type.latitude), :
+indices(type::LongitudeDepthSlice, grid) = (
+    :, clamp(searchsortedfirst(φnodes(grid, Face()), type.latitude), 1:grid.Ny), :
 )
-indices(type::LatitudeDepthSlice, model) = (
-    searchsortedfirst(λnodes(model.grid, Face(); with_halos=true), type.longitude), :, :
+indices(type::LatitudeDepthSlice, grid) = (
+    clamp(searchsortedfirst(λnodes(grid, Face()), type.longitude), 1:grid.Nx), :, :
 )
-indices(::DepthTimeAveraged, model) = (:, :, :)
+indices(::DepthTimeAveraged, grid) = (:, :, :)
 
 """
 Named tuple of output variables (fields) to record for output type.
@@ -527,6 +609,13 @@ function add_output_writers!(
 ) where {T}
 
     model = simulation.model
+    # Create a grid on CPU if not already to avoid issues with computing output field
+    # indices from grid using scalar operations on GPU grids
+    grid = (
+        isa(configuration.architecture, CPU) 
+        ? model.grid 
+        : setup_grid(configuration, architecture=CPU())
+    )
 
     for output_type in configuration.output_types
         if output_type.interval <= configuration.simulation_time
@@ -534,9 +623,10 @@ function add_output_writers!(
                 model,
                 outputs(output_type, model),
                 filename=output_filename(configuration, output_type),
-                indices=indices(output_type, model),
+                indices=indices(output_type, grid),
                 schedule=schedule(output_type),
-                overwrite_existing=true
+                overwrite_existing=true,
+                with_halos=true,
             )
         end
     end
@@ -631,7 +721,11 @@ Label for horizontal axis for field heatmaps.
     
 $(TYPEDSIGNATURES)
 """
-axis_xlabel(output_type::AbstractOutputType) = "Longitude λ (ᵒ)"
+function axis_xlabel(::AbstractOutputType) end
+
+axis_xlabel(::AbstractHorizontalOutputType) = "Longitude λ (ᵒ)"
+axis_xlabel(::LongitudeDepthSlice) = "Longitude λ (ᵒ)"
+axis_xlabel(::LatitudeDepthSlice) = "Latitude ϕ (ᵒ)"
 
 """
 Label for vertical axis for field heatmaps.
@@ -640,8 +734,8 @@ $(TYPEDSIGNATURES)
 """
 function axis_ylabel(::AbstractOutputType) end
 
-axis_ylabel(output_type::AbstractHorizontalOutputType) = "Latitude ϕ (ᵒ)"
-axis_ylabel(output_type::AbstractVerticalOutputType) = "Depth z (m)"
+axis_ylabel(::AbstractHorizontalOutputType) = "Latitude ϕ (ᵒ)"
+axis_ylabel(::AbstractVerticalOutputType) = "Depth z (m)"
 
 
 """
