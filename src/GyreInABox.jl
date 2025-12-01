@@ -387,7 +387,7 @@ Maximal surface wind stress given parameters `p` in m² s⁻².
 $(SIGNATURES)
 """
 @inline function max_surface_wind_stress(p::GyreInABoxParameters)
-    -p.ρ_a / p.ρ_s * p.c_d * p.u_10^2
+    p.ρ_a / p.ρ_s * p.c_d * p.u_10^2
 end
 
 """
@@ -401,7 +401,7 @@ Computes wind stress in zonal direction at longitude `λ` and latitude `φ` (bot
 degrees), time `t` and with model parameters `p`.
 """
 function zonal_wind_stress(λ, φ, t, p::GyreInABoxParameters)
-    return -max_surface_wind_stress(p) * cos(2π * (φ - p.φ_u) / p.Lφ_u)
+    return max_surface_wind_stress(p) * cos(2π * (φ - p.φ_u) / p.Lφ_u)
 end
 
 """
