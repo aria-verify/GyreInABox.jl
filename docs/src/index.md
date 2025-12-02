@@ -70,16 +70,18 @@ constant in longitude, as shown in the figure below.
 initial_temperature = GyreInABox.initial_temperature.(φ, z', (parameters,))
 initial_salinity = GyreInABox.initial_salinity.(φ, z', (parameters,))
 
-figure = Figure(size=(600, 300))
+figure = Figure(size=(800, 300))
 
 xlabel = "Latitude φ / °"
 ylabel = "Depth / m"
 
-axis_temperature = Axis(figure[1, 1]; xlabel, ylabel)
-axis_salinity = Axis(figure[1, 2]; xlabel, ylabel)
+axis_temperature = Axis(figure[1, 1]; xlabel, ylabel, title="Initial temperature")
+axis_salinity = Axis(figure[1, 3]; xlabel, ylabel, title="Initial salinity")
 
-heatmap!(axis_temperature, φ, z, initial_temperature)
-heatmap!(axis_salinity, φ, z, initial_salinity)
+hm_T = heatmap!(axis_temperature, φ, z, initial_temperature; colormap=:thermal)
+Colorbar(figure[1, 2], hm_T; label="ᵒC")
+hm_S = heatmap!(axis_salinity, φ, z, initial_salinity; colormap=:haline)
+Colorbar(figure[1, 4], hm_S; label="g / kg")
 
 save("initial_temperature_and_salinity.svg", figure)
 ```
