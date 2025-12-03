@@ -143,7 +143,7 @@ $(TYPEDFIELDS)
     "Depth of slice / m"
     depth::T = 0.
     "Time interval to record output at / s"
-    interval::T = 6hour
+    interval::T = 1day
 end
 
 """
@@ -164,7 +164,7 @@ $(TYPEDFIELDS)
     "Latitude of slice / °"
     latitude::T = 45.
     "Time interval to record output at / s"
-    interval::T = 6hour
+    interval::T = 1day
 end
 
 """
@@ -185,7 +185,7 @@ $(TYPEDFIELDS)
     "Longitude of slice / °"
     longitude::T = 30.
     "Time interval to record output at / s"
-    interval::T = 6hour
+    interval::T = 1day
 end
 
 """
@@ -206,7 +206,7 @@ $(TYPEDFIELDS)
     "Time interval to record output at / s"
     interval::T = 30day
     "Time window to accumulate output averages over / s"
-    average_window::T = 10day
+    average_window::T = 30day
 end
 
 SliceOutputType = Union{HorizontalSlice, LongitudeDepthSlice, LatitudeDepthSlice}
@@ -250,7 +250,7 @@ $(TYPEDFIELDS)
     "Tracer variables - needs to match turbulence closure and buoyancy formulation."
     tracers::Tuple = (:T, :S, :e)
     "Grid dimensions in longitude, latitude and depth"
-    grid_size::Tuple = (120, 120, 50)
+    grid_size::Tuple = (60, 60, 15)
     "Extent of spatial domain in longitude / °"
     longitude_interval::Tuple = (0, 60)
     "Extent of spatial domain in latitude / °"
@@ -262,7 +262,7 @@ $(TYPEDFIELDS)
     "Dimensions of grid halo region in longitude, latitude and depth"
     halo_size::Tuple = (6, 6, 3)
     "Time to simulate for / s"
-    simulation_time::T = 5day
+    simulation_time::T = 60day
     "Initial time step to use / s"
     initial_timestep::T = 10minute
     "Maximum time step to use in time step adaptation / s"
@@ -823,9 +823,9 @@ function record_animation(
     u_limits::Tuple = (-2., 2.),
     v_limits::Tuple = (-2., 2.),
     w_limits::Tuple = (-1e-2, 1e-2),
-    T_limits::Tuple = (2., 20.),
-    S_limits::Tuple = (34., 36.),
-    e_limits::Tuple = (0., 6e-3)
+    T_limits::Tuple = (2., 30.),
+    S_limits::Tuple = (32., 38.),
+    e_limits::Tuple = (0., 1e-2)
 ) where {T}
     filepath = output_filename(configuration, output_type)
 
