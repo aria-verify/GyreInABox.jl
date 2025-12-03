@@ -8,22 +8,25 @@ Documentation for [GyreInABox](https://github.com/aria-verify/GyreInABox.jl).
 
 ## Model details
 
-The model is an adaptation of the [baroclinic gyre example](https://mitgcm.readthedocs.io/en/latest/examples/baroclinic_gyre/baroclinic_gyre.html)
-from the MITgcm documentation. It simulates a wind and buoyancy forced double-gyre
-ocean circulation on a spherical shell sector spatial domain, with default domain extents
+The model is an adaptation of the [baroclinic gyre
+example](https://mitgcm.readthedocs.io/en/latest/examples/baroclinic_gyre/baroclinic_gyre.html)
+from the MITgcm documentation. It simulates a wind and buoyancy forced double-gyre ocean
+circulation on a spherical shell sector spatial domain, with default domain extents
 $(0^\circ, 60^\circ) \times (15^\circ, 75^\circ) \times (-1800\textsf{m}, 0\textsf{m})$
 (longitude × latitude × depth dimensions).
 
-By default a non-linear TEOS-10 polynomial equation of state is used to compute buoyancy
-from salinity and temperature fields. No slip / no-flux boundary conditions are
-applied to the velocity fields on all walls, and a boundary condition corresponding to
-a damping zonal drag on the bottom surface. The zonal velocity component is subject to a
-latitude dependent wind stress roughly reflecting average zonal wind patterns at the surface.
-The temperature and salinity fields have no-flux boundary conditions applied on all walls
-and the bottom surface, and relaxation boundary conditions on the top surface which restore
-the surface fields towards a latitude dependent reference temperature / salinity with a
-parameterised relaxation time. The surface wind stress, reference temperature and reference
-salinity as a function of latitude are shown in the figure below.
+By default a non-linear [TEOS-10 polynomial equation of
+state](https://clima.github.io/SeawaterPolynomials.jl/stable/#The-TEOS-10-standard) is
+used to compute buoyancy from salinity and temperature fields. No slip / no-flux
+boundary conditions are applied to the velocity fields on all walls, and a boundary
+condition corresponding to a damping zonal drag on the bottom surface. The zonal
+velocity component is subject to a latitude dependent wind stress roughly reflecting
+average zonal wind patterns at the surface. The temperature and salinity fields have
+no-flux boundary conditions applied on all walls and the bottom surface, and relaxation
+boundary conditions on the top surface which restore the surface fields towards a
+latitude dependent reference temperature / salinity with a parameterized relaxation
+time. The surface wind stress, reference temperature and reference salinity as a
+function of latitude are shown in the figure below.
 
 ```@setup model_details
 using GyreInABox
@@ -91,13 +94,14 @@ save("initial_temperature_and_salinity.svg", figure)
 ## Usage example
 
 The below example illustrates setting up and running a simulation of the model with the
-default parameter values, and default configuration modulo reduction of the spatial
-resolution to $60\times 60 \times 25$, the simulation time to 6 hours and changing the
-model to record only a horizontal (surface) slice and depth slice along longitude axis
-as outputs. The resulting horizontal and depth slices of simulated fields are recorded
-as an animation using CairoMakie. The simulation time here is too short for the
-simulated fields to show any interesting behaviour, with this example just meant to
-illustrate the overall workflow while remaining relatively cheap to run.
+default parameter values and configuration modulo changing the model to record only a
+horizontal (surface) slice and depth slice along longitude axis as outputs. The
+resulting horizontal and depth slices of simulated fields are recorded as an animation
+using CairoMakie. A coarse default grid size (60 × 60 × 15) and small simulation time
+(60 days) are set so as to allow a simulation to run in around 5 minutes on a CPU, but
+if running on a GPU (controlled by `architecture` keyword argument to
+`GyreInABoxConfiguration`) then finer spatial discretizations and longer simulation
+times can easily be used.
 
 ```@example
 using Oceananigans.Units
@@ -105,11 +109,7 @@ using GyreInABox
 
 parameters = GyreInABoxParameters()
 output_types = (LongitudeDepthSlice(), HorizontalSlice())
-configuration = GyreInABoxConfiguration(
-    grid_size=(60, 60, 25),
-    simulation_time=1day,
-    output_types=output_types
-)
+configuration = GyreInABoxConfiguration(output_types=output_types)
 run_simulation(parameters, configuration)
 for output_type in output_types
     record_animation(configuration, output_type)
