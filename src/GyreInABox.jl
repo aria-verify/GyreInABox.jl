@@ -3,8 +3,9 @@ Oceananigans based model of an ocean gyre in a bounded domain.
 
 ## Details
 
-Model of wind and buoyancy forced ocean gyre adapted from MITgcm
-[baroclinic ocean gyre example from documentation](https://mitgcm.readthedocs.io/en/latest/examples/baroclinic_gyre/baroclinic_gyre.html)
+Model of wind and buoyancy forced ocean gyre adapted from MITgcm documentation
+[baroclinic ocean gyre
+example](https://mitgcm.readthedocs.io/en/latest/examples/baroclinic_gyre/baroclinic_gyre.html)
 implemented using Oceananigans (Ramadhan et al. 2020).
 
 Compared to MITgcm example, beyond the change in the underlying software framework, some
@@ -55,7 +56,8 @@ using CairoMakie
 using Printf
 
 export GyreInABoxParameters, GyreInABoxConfiguration
-export HorizontalSlice, LongitudeDepthSlice, LatitudeDepthSlice, DepthTimeAveraged
+export HorizontalSlice, LongitudeDepthSlice, LatitudeDepthSlice
+export DepthTimeAveraged, FreeSurfaceFields
 export setup_model, initialize_model!, setup_simulation
 export run_simulation, record_animation
 
@@ -214,6 +216,25 @@ SliceOutputType = Union{HorizontalSlice, LongitudeDepthSlice, LatitudeDepthSlice
 """
 $(TYPEDEF)
 
+Free surface fields output.
+    
+$(TYPEDSIGNATURES)
+    
+## Details
+
+Records two-dimensional free surface fields (filtered and unfiltered height and
+barotropic velocity) fields at a given temporal interval.
+
+$(TYPEDFIELDS)
+"""
+@kwdef struct FreeSurfaceFields{T} <: AbstractHorizontalOutputType{T}
+    "Time interval to record output at / s"
+    interval::T = 1day
+end
+
+"""
+$(TYPEDEF)
+
 Configuration for ocean gyre model.
     
 $(TYPEDSIGNATURES)
@@ -282,7 +303,8 @@ $(TYPEDFIELDS)
         HorizontalSlice(),
         LongitudeDepthSlice(),
         LatitudeDepthSlice(),
-        DepthTimeAveraged()
+        DepthTimeAveraged(),
+        FreeSurfaceFields(),
     )
 end
 
@@ -568,6 +590,7 @@ label(::HorizontalSlice) = :horizontal_slice
 label(::LongitudeDepthSlice) = :longitude_depth_slice
 label(::LatitudeDepthSlice) = :latitude_depth_slice
 label(::DepthTimeAveraged) = :depth_time_averaged
+label(::FreeSurfaceFields) = :free_surface_fields
 
 """
 Spatial grid indices output type records fields at.
@@ -585,7 +608,7 @@ indices(type::LongitudeDepthSlice, grid) = (
 indices(type::LatitudeDepthSlice, grid) = (
     clamp(searchsortedfirst(λnodes(grid, Face()), type.longitude), 1:grid.Nx), :, :
 )
-indices(::DepthTimeAveraged, grid) = (:, :, :)
+indices(::Union{DepthTimeAveraged, FreeSurfaceFields}, grid) = (:, :, :)
 
 """
 Named tuple of output variables (fields) to record for output type.
@@ -599,6 +622,11 @@ outputs(::DepthTimeAveraged, model) = NamedTuple(
     name => Field(Average(variable, dims=3))
     for (name, variable) in pairs(merge(model.velocities, model.tracers))
 )
+outputs(::FreeSurfaceFields, model) = merge(
+    (; η=model.free_surface.η),
+    model.free_surface.barotropic_velocities,
+    model.free_surface.filtered_state
+)
 
 """
 Time schedule to record output type at.
@@ -607,7 +635,7 @@ $(TYPEDSIGNATURES)
 """
 function schedule(::AbstractOutputType) end
 
-schedule(type::SliceOutputType) = TimeInterval(type.interval)
+schedule(type::Union{SliceOutputType, FreeSurfaceFields}) = TimeInterval(type.interval)
 schedule(type::DepthTimeAveraged) = AveragedTimeInterval(
     type.interval, window=type.average_window
 )
@@ -677,10 +705,14 @@ function add_progress_message_callback!(
     simulation::Oceananigans.Simulation,
     configuration::GyreInABoxConfiguration{T}
 ) where {T}
+    fields = merge(simulation.model.velocities, simulation.model.tracers)
+    iteration_format_string = "Iteration: %04d, time: %s, Δt: %s, wall time: %s\n  "
+    variables_format_string = join(
+        ("max(|$(variable)|) = %.2e $(unit(variable))" for variable in keys(fields)),
+        ", "
+    )
     message_string_format = Printf.Format(
-        "Iteration: %04d, time: %s, Δt: %s, wall time: %s\n  " *
-        "max(|u|) = %.1e ms⁻¹, max(|v|) = %.1e ms⁻¹, max(|w|) = %.1e ms⁻¹, " *
-        "max(|S|) = %.3e g/kg, max(|T|) = %.3e ᵒC, max(|e|) = %.3e m²s⁻²"
+        iteration_format_string * variables_format_string
     )
     progress_message(sim) = println(
         Printf.format(
@@ -689,12 +721,7 @@ function add_progress_message_callback!(
             prettytime(sim),
             prettytime(sim.Δt),
             prettytime(sim.run_wall_time),
-            maximum(abs, sim.model.velocities.u),
-            maximum(abs, sim.model.velocities.v),
-            maximum(abs, sim.model.velocities.w),
-            maximum(abs, sim.model.tracers.S),
-            maximum(abs, sim.model.tracers.T),
-            maximum(abs, sim.model.tracers.e)
+            (maximum(abs, field) for field in values(fields))...
         )
     )
     add_callback!(
@@ -755,9 +782,9 @@ $(TYPEDSIGNATURES)
 """
 function axis_xlabel(::AbstractOutputType) end
 
-axis_xlabel(::AbstractHorizontalOutputType) = "Longitude λ (ᵒ)"
-axis_xlabel(::LongitudeDepthSlice) = "Longitude λ (ᵒ)"
-axis_xlabel(::LatitudeDepthSlice) = "Latitude ϕ (ᵒ)"
+axis_xlabel(::AbstractHorizontalOutputType) = "Longitude λ / ᵒ"
+axis_xlabel(::LongitudeDepthSlice) = "Longitude λ / ᵒ"
+axis_xlabel(::LatitudeDepthSlice) = "Latitude ϕ / ᵒ"
 
 """
 Label for vertical axis for field heatmaps.
@@ -766,8 +793,8 @@ $(TYPEDSIGNATURES)
 """
 function axis_ylabel(::AbstractOutputType) end
 
-axis_ylabel(::AbstractHorizontalOutputType) = "Latitude ϕ (ᵒ)"
-axis_ylabel(::AbstractVerticalOutputType) = "Depth z (m)"
+axis_ylabel(::AbstractHorizontalOutputType) = "Latitude ϕ / ᵒ"
+axis_ylabel(::AbstractVerticalOutputType) = "Depth z / m"
 
 
 """
@@ -798,6 +825,60 @@ axis_limits(configuration::GyreInABoxConfiguration, ::LatitudeDepthSlice) = (
     configuration.latitude_interval, configuration.depth_interval
 )
 
+struct VariablePlotConfiguration
+    label::String
+    unit::String
+    colormap::Symbol
+    colorrange::Tuple
+end
+
+const DEFAULT_VARIABLE_PLOT_CONFIGURATIONS = Dict(
+    "u" => VariablePlotConfiguration(
+        "Zonal velocity u", "m s⁻¹", :balance, (-2., 2.)
+    ),
+    "v" => VariablePlotConfiguration(
+        "Meridional velocity v", "m s⁻¹", :balance, (-2., 2.)
+    ),
+    "w" => VariablePlotConfiguration(
+        "Vertical velocity q", "m s⁻¹", :balance, (-1e-2, 1e-2)
+    ),
+    "T" => VariablePlotConfiguration(
+        "Temperature T", "°C", :thermal, (2., 30.)
+    ),
+    "S" => VariablePlotConfiguration(
+        "Salinity S", "g kg⁻¹", :haline, (32., 38.)
+    ),
+    "e" => VariablePlotConfiguration(
+        "Turbulent kinetic energy e", "m² s⁻²", :thermal,  (0, 1e-2)
+    ),
+    "η" => VariablePlotConfiguration(
+        "Free surface height η", "m", :balance, (-3., 3.)
+    ),
+    "U" => VariablePlotConfiguration(
+        "Barotropic zonal velocity U", "m² s⁻¹", :balance, (-1e3, 1e3)
+    ),
+    "V" => VariablePlotConfiguration(
+        "Barotropic meridional velocity V", "m² s⁻¹", :balance, (-1e3, 1e3)
+    ),
+    "η̅" => VariablePlotConfiguration(
+        "Filtered free surface height η̅", "m", :balance, (-3., 3.)
+    ),
+    "U̅" => VariablePlotConfiguration(
+        "Filtered barotropic zonal velocity U̅", "m² s⁻¹", :balance, (-1e3, 1e3)
+    ),
+    "V̅" => VariablePlotConfiguration(
+        "Filtered barotropic meridional velocity V̅", "m² s⁻¹", :balance, (-1e3, 1e3)
+    ),
+)
+
+"""
+Get unit associated with a variable.
+
+$(SIGNATURES)
+"""
+unit(variable_name::String) = DEFAULT_VARIABLE_PLOT_CONFIGURATIONS[variable_name].unit
+unit(variable::Symbol) = unit(string(variable))
+
 """
 Record an animation of fields recorded as model output.
 
@@ -808,84 +889,63 @@ $(SIGNATURES)
 Generates and record to file an animation of model outputs for a model configuration
 `configuration` and output type `output_type`. The simulation must have already been
 run for this configuration and with specified output type active.
-
-Animation is generated using CairoMakie with a figure window size in pixels of
-`(figure_size)`, frame rate in frames per second of `frame_rate` and limits for the
-zonal velocity, meridional velocity, vertical velocity, temperature, salinity and
-turbulent kinetic energy field value color mappings specified by `u_limits`, `v_limits`,
-`w_limits`, `T_limits`, `S_limits` and `e_limits` respectively.
 """
 function record_animation(
     configuration::GyreInABoxConfiguration{T},
     output_type::AbstractOutputType;
-    figure_size::Tuple = (1800, 900),
     frame_rate::Int = 8,
-    u_limits::Tuple = (-2., 2.),
-    v_limits::Tuple = (-2., 2.),
-    w_limits::Tuple = (-1e-2, 1e-2),
-    T_limits::Tuple = (2., 30.),
-    S_limits::Tuple = (32., 38.),
-    e_limits::Tuple = (0., 1e-2)
+    max_columns::Int = 3,
+    axis_width::Int = 600,
+    axis_height::Int = 400,
+    title_height::Int = 100,
+    plot_configuration_overrides::Union{Dict, Nothing} = nothing
 ) where {T}
     filepath = output_filename(configuration, output_type)
-
-    time_series = (
-        u=FieldTimeSeries(filepath, "u"),
-        v=FieldTimeSeries(filepath, "v"),
-        w=FieldTimeSeries(filepath, "w"),
-        T=FieldTimeSeries(filepath, "T"),
-        S=FieldTimeSeries(filepath, "S"),
-        e=FieldTimeSeries(filepath, "e")
-    )
-
-    times = time_series.u.times
-
-    n = Observable(1)
-
-    uₙ = @lift time_series.u[$n]
-    vₙ = @lift time_series.v[$n]
-    wₙ = @lift time_series.w[$n]
-    Tₙ = @lift time_series.T[$n]
-    Sₙ = @lift time_series.S[$n]
-    eₙ = @lift time_series.e[$n]
-
-    fig = Figure(size=figure_size)
-
+    fields = FieldDataset(filepath).fields
+    
     axis_kwargs = (
         xlabel=axis_xlabel(output_type),
         ylabel=axis_ylabel(output_type),
         aspect=axis_aspect_ratio(configuration, output_type),
         limits=axis_limits(configuration, output_type)
     )
-
-    ax_u = Axis(fig[2, 1]; title="Zonal velocity u", axis_kwargs...)
-    ax_v = Axis(fig[2, 3]; title="Meridional velocity v", axis_kwargs...)
-    ax_w = Axis(fig[2, 5]; title="Vertical velocity w", axis_kwargs...)
-    ax_T = Axis(fig[3, 1]; title="Temperature T", axis_kwargs...)
-    ax_S = Axis(fig[3, 3]; title="Salinity S", axis_kwargs...)
-    ax_e = Axis(fig[3, 5]; title="Turbulent kinetic energy e", axis_kwargs...)
-
-    title = @lift @sprintf("t = %s", prettytime(times[$n]))
-
-    hm_u = heatmap!(ax_u, uₙ; colormap=:balance, colorrange=u_limits)
-    Colorbar(fig[2, 2], hm_u; label="m s⁻¹")
-
-    hm_v = heatmap!(ax_v, vₙ; colormap=:balance, colorrange=v_limits)
-    Colorbar(fig[2, 4], hm_v; label="m s⁻¹")
     
-    hm_w = heatmap!(ax_w, wₙ; colormap=:balance, colorrange=w_limits)
-    Colorbar(fig[2, 6], hm_w; label="m s⁻¹")
-
-    hm_T = heatmap!(ax_T, Tₙ; colormap=:thermal, colorrange=T_limits)
-    Colorbar(fig[3, 2], hm_T; label="ᵒC")
-
-    hm_S = heatmap!(ax_S, Sₙ; colormap=:haline, colorrange=S_limits)
-    Colorbar(fig[3, 4], hm_S; label="g / kg")
+    variable_plot_configurations = (
+        isnothing(plot_configuration_overrides) 
+        ? DEFAULT_VARIABLE_PLOT_CONFIGURATIONS 
+        : merge(DEFAULT_VARIABLE_PLOT_CONFIGURATIONS, plot_configuration_overrides)
+    )
     
-    hm_e = heatmap!(ax_e, eₙ; colormap=:thermal, colorrange=e_limits)
-    Colorbar(fig[3, 6], hm_e; label="m² s⁻²")
-
-    fig[1, 1:6] = Label(fig, title, fontsize=24, tellwidth=false)
+    field_variables = sort(
+        tuple((keys(fields) ∩ keys(variable_plot_configurations))...),
+        # Sort by tuple of variable name length and variable so that decorated variable
+        # names appear after undecorated variables
+        by=variable -> (length(variable), variable)
+    )
+    
+    n_fields = length(field_variables)
+    n_columns = min(n_fields, max_columns)
+    n_rows = cld(n_fields, n_columns)
+    fig = Figure(size=(axis_width * n_columns, axis_height * n_rows + title_height))
+    
+    times = first(values(fields)).times
+    time_index = Observable(1)
+    
+    for (variable_index, variable) in enumerate(field_variables)
+        config = variable_plot_configurations[variable]
+        field = @lift fields[variable][$time_index]
+        row = (variable_index - 1) ÷ n_columns + 2
+        col = ((variable_index - 1) % n_columns) * 2 + 1
+        axis = Axis(fig[row, col]; title=config.label, axis_kwargs...)
+        hmap = heatmap!(
+            axis, field; colormap=config.colormap, colorrange=config.colorrange
+        )
+        Colorbar(fig[row, col + 1], hmap; label=config.unit)
+    end
+    
+    title = @lift @sprintf("t = %s", prettytime(times[$time_index]))
+    
+    fig[1, 1:n_columns * 2] = Label(fig, title, fontsize=24, tellwidth=false)
 
     frames = 1:length(times)
 
@@ -894,7 +954,7 @@ function record_animation(
 
     CairoMakie.record(fig, output_file, frames, framerate=frame_rate) do i
         (i % 10 == 0) && @printf "Plotting frame %i of %i\n" i frames[end]
-        n[] = i
+        time_index[] = i
     end
 
     fig
