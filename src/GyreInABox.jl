@@ -57,7 +57,7 @@ using Printf
 
 export GyreInABoxParameters, GyreInABoxConfiguration
 export HorizontalSlice, LongitudeDepthSlice, LatitudeDepthSlice
-export DepthTimeAveraged, FreeSurfaceFields
+export DepthTimeAveraged, FreeSurfaceFields, MOCStreamFunction
 export setup_model, initialize_model!, setup_simulation
 export run_simulation, record_animation
 
@@ -211,6 +211,38 @@ $(TYPEDFIELDS)
     average_window::T = 30day
 end
 
+"""
+$(TYPEDEF)
+
+Zonally integrated stream function of meridional transport corresponding to measure of
+meridional overturning circulation (MOC).
+    
+$(TYPEDSIGNATURES)
+    
+## Details
+
+Records latitude-depth fields corresponding to zonally integrated stream function of
+meridional transport - computed here as vertically accumulated - that is cumulative
+vertical integral with respect to depth - of meridional velocity component:
+
+```math
+\\Psi(\\varphi, z, t) = 
+\\int_{z}^0 \\int_{\\lambda_W}^{\\lambda_E} 
+  v(\\lambda, \\varphi, z', t)
+\\mathrm{d}\\lambda \\mathrm{d}z',
+```
+
+averaging over time windows `average_window` at interval `interval`.
+
+$(TYPEDFIELDS)
+"""
+@kwdef struct MOCStreamFunction{T} <: AbstractVerticalOutputType{T}
+    "Time interval to record output at / s"
+    interval::T = 30day
+    "Time window to accumulate output averages over / s"
+    average_window::T = 30day
+end
+
 SliceOutputType = Union{HorizontalSlice, LongitudeDepthSlice, LatitudeDepthSlice}
 
 """
@@ -313,7 +345,7 @@ end
 
 """
 Reference surface salinity for restoring surface salinity boundary condition as
-function of latitude `φ`` and parameters `p`.
+function of latitude `φ` and parameters `p`.
 
 $(SIGNATURES)
 """
@@ -591,6 +623,7 @@ label(::LongitudeDepthSlice) = :longitude_depth_slice
 label(::LatitudeDepthSlice) = :latitude_depth_slice
 label(::DepthTimeAveraged) = :depth_time_averaged
 label(::FreeSurfaceFields) = :free_surface_fields
+label(::MOCStreamFunction) = :moc_stream_function
 
 """
 Spatial grid indices output type records fields at.
@@ -608,7 +641,7 @@ indices(type::LongitudeDepthSlice, grid) = (
 indices(type::LatitudeDepthSlice, grid) = (
     clamp(searchsortedfirst(λnodes(grid, Face()), type.longitude), 1:grid.Nx), :, :
 )
-indices(::Union{DepthTimeAveraged, FreeSurfaceFields}, grid) = (:, :, :)
+indices(::Union{DepthTimeAveraged, FreeSurfaceFields, MOCStreamFunction}, grid) = (:, :, :)
 
 """
 Named tuple of output variables (fields) to record for output type.
@@ -627,6 +660,13 @@ outputs(::FreeSurfaceFields, model) = merge(
     model.free_surface.barotropic_velocities,
     model.free_surface.filtered_state
 )
+outputs(::MOCStreamFunction, model) = (;
+    Ψ = Field(
+        CumulativeIntegral(
+            Field(Integral(model.velocities.v, dims=1)), dims=3, reverse=true
+        )
+    )
+)
 
 """
 Time schedule to record output type at.
@@ -636,7 +676,7 @@ $(TYPEDSIGNATURES)
 function schedule(::AbstractOutputType) end
 
 schedule(type::Union{SliceOutputType, FreeSurfaceFields}) = TimeInterval(type.interval)
-schedule(type::DepthTimeAveraged) = AveragedTimeInterval(
+schedule(type::Union{DepthTimeAveraged, MOCStreamFunction}) = AveragedTimeInterval(
     type.interval, window=type.average_window
 )
 
@@ -784,7 +824,7 @@ function axis_xlabel(::AbstractOutputType) end
 
 axis_xlabel(::AbstractHorizontalOutputType) = "Longitude λ / ᵒ"
 axis_xlabel(::LongitudeDepthSlice) = "Longitude λ / ᵒ"
-axis_xlabel(::LatitudeDepthSlice) = "Latitude ϕ / ᵒ"
+axis_xlabel(::Union{LatitudeDepthSlice, MOCStreamFunction}) = "Latitude ϕ / ᵒ"
 
 """
 Label for vertical axis for field heatmaps.
@@ -821,7 +861,7 @@ axis_limits(configuration::GyreInABoxConfiguration, ::AbstractHorizontalOutputTy
 axis_limits(configuration::GyreInABoxConfiguration, ::LongitudeDepthSlice) = (
     configuration.longitude_interval, configuration.depth_interval
 )
-axis_limits(configuration::GyreInABoxConfiguration, ::LatitudeDepthSlice) = (
+axis_limits(configuration::GyreInABoxConfiguration, ::Union{LatitudeDepthSlice, MOCStreamFunction}) = (
     configuration.latitude_interval, configuration.depth_interval
 )
 
