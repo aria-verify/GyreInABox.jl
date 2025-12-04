@@ -825,22 +825,39 @@ axis_limits(configuration::GyreInABoxConfiguration, ::LatitudeDepthSlice) = (
     configuration.latitude_interval, configuration.depth_interval
 )
 
+@kwdef struct AutoVariableLimits{T}
+    extrema_scale_factor::T = 0.8
+    symmetrize::Bool = true
+end
+
+"""
+Variable value limits for field color mapping.
+
+$(TYPEDSIGNATURES)
+"""
+variable_limits(limits::Tuple{T, T}, ::FieldTimeSeries) where {T} = limits
+
+function variable_limits(auto::AutoVariableLimits{T}, field_timeseries) where {T}
+    limits = extrema(interior(field_timeseries)) .* auto.extrema_scale_factor
+    auto.symmetrize ? (-maximum(abs.(limits)), maximum(abs.(limits))) : limits 
+end
+
 struct VariablePlotConfiguration
     label::String
     unit::String
-    colormap::Symbol
-    colorrange::Tuple
+    color_map::Symbol
+    limits::Union{Tuple, AutoVariableLimits}
 end
 
-const DEFAULT_VARIABLE_PLOT_CONFIGURATIONS = Dict(
+const DEFAULT_VARIABLE_PLOT_CONFIGURATIONS = Dict{String, VariablePlotConfiguration}(
     "u" => VariablePlotConfiguration(
-        "Zonal velocity u", "m s⁻¹", :balance, (-2., 2.)
+        "Zonal velocity u", "m s⁻¹", :balance, AutoVariableLimits()
     ),
     "v" => VariablePlotConfiguration(
-        "Meridional velocity v", "m s⁻¹", :balance, (-2., 2.)
+        "Meridional velocity v", "m s⁻¹", :balance, AutoVariableLimits()
     ),
     "w" => VariablePlotConfiguration(
-        "Vertical velocity q", "m s⁻¹", :balance, (-1e-2, 1e-2)
+        "Vertical velocity w", "m s⁻¹", :balance, AutoVariableLimits()
     ),
     "T" => VariablePlotConfiguration(
         "Temperature T", "°C", :thermal, (2., 30.)
@@ -849,25 +866,31 @@ const DEFAULT_VARIABLE_PLOT_CONFIGURATIONS = Dict(
         "Salinity S", "g kg⁻¹", :haline, (32., 38.)
     ),
     "e" => VariablePlotConfiguration(
-        "Turbulent kinetic energy e", "m² s⁻²", :thermal,  (0, 1e-2)
+        "Turbulent kinetic energy e", 
+        "m² s⁻²",
+        :amp, 
+        AutoVariableLimits(symmetrize=false, extrema_scale_factor=0.5)
     ),
     "η" => VariablePlotConfiguration(
-        "Free surface height η", "m", :balance, (-3., 3.)
+        "Free surface height η", "m", :balance, AutoVariableLimits()
     ),
     "U" => VariablePlotConfiguration(
-        "Barotropic zonal velocity U", "m² s⁻¹", :balance, (-1e3, 1e3)
+        "Barotropic zonal velocity U", "m² s⁻¹", :balance, AutoVariableLimits()
     ),
     "V" => VariablePlotConfiguration(
-        "Barotropic meridional velocity V", "m² s⁻¹", :balance, (-1e3, 1e3)
+        "Barotropic meridional velocity V", "m² s⁻¹", :balance, AutoVariableLimits()
     ),
     "η̅" => VariablePlotConfiguration(
-        "Filtered free surface height η̅", "m", :balance, (-3., 3.)
+        "Filtered free surface height η̅", "m", :balance, AutoVariableLimits()
     ),
     "U̅" => VariablePlotConfiguration(
-        "Filtered barotropic zonal velocity U̅", "m² s⁻¹", :balance, (-1e3, 1e3)
+        "Filtered barotropic zonal velocity U̅", "m² s⁻¹", :balance, AutoVariableLimits()
     ),
     "V̅" => VariablePlotConfiguration(
-        "Filtered barotropic meridional velocity V̅", "m² s⁻¹", :balance, (-1e3, 1e3)
+        "Filtered barotropic meridional velocity V̅",
+        "m² s⁻¹",
+        :balance, 
+        AutoVariableLimits()
     ),
 )
 
@@ -889,19 +912,31 @@ $(SIGNATURES)
 Generates and record to file an animation of model outputs for a model configuration
 `configuration` and output type `output_type`. The simulation must have already been
 run for this configuration and with specified output type active.
+
+Animation is recorded with a frame rate of `frame_rate` frames per second, with fields
+arranged on a grid with a maximum of `max_columns` columns, with the axis for each
+field heatmap of size `(axis_width, axis_height)` in pixels and a further `title_height`
+pixels allowed at the top of the figure for a title showing the simulation time.
+
+By default the plot configurations for each field variable are taken from the
+`GyreInABox.DEFAULT_VARIABLE_PLOT_CONFIGURATIONS` dictionary but these can be overridden
+by passing a dictionary `plot_configuration_overrides` with keys corresponding to the
+variable names to override. Specific variables to exclude from plot can be specified
+in a tuple of variable names `exclude_variables`.
 """
 function record_animation(
     configuration::GyreInABoxConfiguration{T},
     output_type::AbstractOutputType;
-    frame_rate::Int = 8,
+    frame_rate::Int = 10,
     max_columns::Int = 3,
-    axis_width::Int = 600,
-    axis_height::Int = 400,
-    title_height::Int = 100,
+    axis_width::Int = 640,
+    axis_height::Int = 480,
+    title_height::Int = 40,
+    exclude_variables::Tuple = (),
     plot_configuration_overrides::Union{Dict, Nothing} = nothing
 ) where {T}
     filepath = output_filename(configuration, output_type)
-    fields = FieldDataset(filepath).fields
+    field_timeseries = FieldDataset(filepath).fields
     
     axis_kwargs = (
         xlabel=axis_xlabel(output_type),
@@ -917,7 +952,12 @@ function record_animation(
     )
     
     field_variables = sort(
-        tuple((keys(fields) ∩ keys(variable_plot_configurations))...),
+        tuple(
+            setdiff(
+                keys(field_timeseries) ∩ keys(variable_plot_configurations),
+                exclude_variables
+            )...
+        ),
         # Sort by tuple of variable name length and variable so that decorated variable
         # names appear after undecorated variables
         by=variable -> (length(variable), variable)
@@ -926,26 +966,32 @@ function record_animation(
     n_fields = length(field_variables)
     n_columns = min(n_fields, max_columns)
     n_rows = cld(n_fields, n_columns)
-    fig = Figure(size=(axis_width * n_columns, axis_height * n_rows + title_height))
     
-    times = first(values(fields)).times
+    fig = Figure(
+        # CairoMakie defaults to px_per_unit=2 so manually adjust figure size here to
+        # account for this - this is done in preference to changing px_per_unit using
+        # CairoMakie.activate! to avoid persisting change after function exit
+        size=(axis_width * n_columns / 2, (axis_height * n_rows + title_height) / 2),
+        fontsize=12,
+    )
+    
+    times = first(values(field_timeseries)).times
     time_index = Observable(1)
     
     for (variable_index, variable) in enumerate(field_variables)
         config = variable_plot_configurations[variable]
-        field = @lift fields[variable][$time_index]
+        color_range = variable_limits(config.limits, field_timeseries[variable])
+        field = @lift field_timeseries[variable][$time_index]
         row = (variable_index - 1) ÷ n_columns + 2
         col = ((variable_index - 1) % n_columns) * 2 + 1
         axis = Axis(fig[row, col]; title=config.label, axis_kwargs...)
-        hmap = heatmap!(
-            axis, field; colormap=config.colormap, colorrange=config.colorrange
-        )
+        hmap = heatmap!(axis, field; colormap=config.color_map, colorrange=color_range)
         Colorbar(fig[row, col + 1], hmap; label=config.unit)
     end
     
     title = @lift @sprintf("t = %s", prettytime(times[$time_index]))
     
-    fig[1, 1:n_columns * 2] = Label(fig, title, fontsize=24, tellwidth=false)
+    fig[1, 1:n_columns * 2] = Label(fig, title, fontsize=20, tellwidth=false)
 
     frames = 1:length(times)
 
