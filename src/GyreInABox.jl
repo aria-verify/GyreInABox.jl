@@ -127,6 +127,8 @@ abstract type AbstractHorizontalOutputType{T} <: AbstractOutputType{T} end
 
 abstract type AbstractVerticalOutputType{T} <: AbstractOutputType{T} end
 
+abstract type AbstractLatitudeDepthOutputType{T} <: AbstractVerticalOutputType{T} end
+
 """
 $(TYPEDEF)
 
@@ -183,7 +185,7 @@ and interval.
 
 $(TYPEDFIELDS)
 """
-@kwdef struct LatitudeDepthSlice{T} <: AbstractVerticalOutputType{T}
+@kwdef struct LatitudeDepthSlice{T} <: AbstractLatitudeDepthOutputType{T}
     "Longitude of slice / °"
     longitude::T = 30.
     "Time interval to record output at / s"
@@ -215,7 +217,7 @@ end
 $(TYPEDEF)
 
 Zonally integrated stream function of meridional transport corresponding to measure of
-meridional overturning circulation (MOC).
+meridional overturning circulation (MOC) output.
     
 $(TYPEDSIGNATURES)
     
@@ -227,16 +229,17 @@ vertical integral with respect to depth - of meridional velocity component:
 
 ```math
 \\Psi(\\varphi, z, t) = 
-\\int_{z}^0 \\int_{\\lambda_W}^{\\lambda_E} 
+\\int_{0}^z \\int_{\\lambda_W}^{\\lambda_E} 
   v(\\lambda, \\varphi, z', t)
-\\mathrm{d}\\lambda \\mathrm{d}z',
+\\,\\mathrm{d}\\lambda \\,\\mathrm{d}z',
 ```
 
-averaging over time windows `average_window` at interval `interval`.
+averaging over time windows `average_window` at interval `interval`. The outputted field
+is scaled to be in sverdrup (10⁶ m³ s⁻¹) units.
 
 $(TYPEDFIELDS)
 """
-@kwdef struct MOCStreamFunction{T} <: AbstractVerticalOutputType{T}
+@kwdef struct MOCStreamFunction{T} <: AbstractLatitudeDepthOutputType{T}
     "Time interval to record output at / s"
     interval::T = 30day
     "Time window to accumulate output averages over / s"
@@ -630,7 +633,7 @@ Spatial grid indices output type records fields at.
 
 $(TYPEDSIGNATURES)
 """
-function indices(type::AbstractOutputType, grid) end
+indices(::AbstractOutputType, grid) = (:, :, :)
 
 indices(type::HorizontalSlice, grid) = (
     :, :, clamp(searchsortedfirst(znodes(grid, Face()), type.depth), 1:grid.Nz)
@@ -641,7 +644,6 @@ indices(type::LongitudeDepthSlice, grid) = (
 indices(type::LatitudeDepthSlice, grid) = (
     clamp(searchsortedfirst(λnodes(grid, Face()), type.longitude), 1:grid.Nx), :, :
 )
-indices(::Union{DepthTimeAveraged, FreeSurfaceFields, MOCStreamFunction}, grid) = (:, :, :)
 
 """
 Named tuple of output variables (fields) to record for output type.
@@ -826,7 +828,7 @@ function axis_xlabel(::AbstractOutputType) end
 
 axis_xlabel(::AbstractHorizontalOutputType) = "Longitude λ / ᵒ"
 axis_xlabel(::LongitudeDepthSlice) = "Longitude λ / ᵒ"
-axis_xlabel(::Union{LatitudeDepthSlice, MOCStreamFunction}) = "Latitude ϕ / ᵒ"
+axis_xlabel(::AbstractLatitudeDepthOutputType) = "Latitude ϕ / ᵒ"
 
 """
 Label for vertical axis for field heatmaps.
@@ -863,7 +865,7 @@ axis_limits(configuration::GyreInABoxConfiguration, ::AbstractHorizontalOutputTy
 axis_limits(configuration::GyreInABoxConfiguration, ::LongitudeDepthSlice) = (
     configuration.longitude_interval, configuration.depth_interval
 )
-axis_limits(configuration::GyreInABoxConfiguration, ::Union{LatitudeDepthSlice, MOCStreamFunction}) = (
+axis_limits(configuration::GyreInABoxConfiguration, ::AbstractLatitudeDepthOutputType) = (
     configuration.latitude_interval, configuration.depth_interval
 )
 
