@@ -663,7 +663,9 @@ outputs(::FreeSurfaceFields, model) = merge(
 outputs(::MOCStreamFunction, model) = (;
     Ψ = Field(
         CumulativeIntegral(
-            Field(Integral(model.velocities.v, dims=1)), dims=3, reverse=true
+            # Scale velocities by 1 / 10⁶ so doubly spatially integrated field is in
+            # units 10⁶ m³ s⁻¹ = Sv (Sverdrup)
+            Field(Integral(model.velocities.v * 1e-6, dims=1)), dims=3, reverse=true
         )
     )
 )
@@ -931,6 +933,9 @@ const DEFAULT_VARIABLE_PLOT_CONFIGURATIONS = Dict{String, VariablePlotConfigurat
         "m² s⁻¹",
         :balance, 
         AutoVariableLimits()
+    ),
+    "Ψ" => VariablePlotConfiguration(
+        "MOC stream function Ψ", "Sv", :balance, GyreInABox.AutoVariableLimits()
     ),
 )
 
