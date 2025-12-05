@@ -57,7 +57,7 @@ using Printf
 
 export GyreInABoxParameters, GyreInABoxConfiguration
 export HorizontalSlice, LongitudeDepthSlice, LatitudeDepthSlice
-export DepthTimeAveraged, FreeSurfaceFields, MOCStreamFunction
+export DepthTimeAveraged, FreeSurfaceFields, MOCStreamFunction, BarotropicStreamFunction
 export setup_model, initialize_model!, setup_simulation
 export run_simulation, record_animation
 
@@ -216,16 +216,15 @@ end
 """
 $(TYPEDEF)
 
-Zonally integrated stream function of meridional transport corresponding to measure of
-meridional overturning circulation (MOC) output.
+Meridional overturning circulation (MOC) stream function output.
     
 $(TYPEDSIGNATURES)
     
 ## Details
 
-Records latitude-depth fields corresponding to zonally integrated stream function of
-meridional transport - computed here as vertically accumulated - that is cumulative
-vertical integral with respect to depth - of meridional velocity component:
+Records latitude-depth fields corresponding to stream function of meridional overturning
+circulation - computed here as vertically accumulated - that is cumulative vertical
+integral with respect to depth - of zonally integrated meridional velocity component:
 
 ```math
 \\Psi(\\varphi, z, t) = 
@@ -240,6 +239,38 @@ is scaled to be in sverdrup (10⁶ m³ s⁻¹) units.
 $(TYPEDFIELDS)
 """
 @kwdef struct MOCStreamFunction{T} <: AbstractLatitudeDepthOutputType{T}
+    "Time interval to record output at / s"
+    interval::T = 30day
+    "Time window to accumulate output averages over / s"
+    average_window::T = 30day
+end
+
+"""
+$(TYPEDEF)
+
+Barotropic stream function output.
+    
+$(TYPEDSIGNATURES)
+    
+## Details
+
+Records longitude-latitude fields corresponding to stream function of barotropic
+velocity - computed here as zonally accumulated - that is cumulative integral with
+respect to longitude - of depth integrated meridional velocity component:
+
+```math
+\\Psi^B(\\lambda, \\varphi, t) = 
+\\int_{\\lambda_W}^{\\lambda}  \\int_{z_B}^{z_S} 
+  v(\\lambda', \\varphi, z, t)
+\\,\\mathrm{d}z \\,\\mathrm{d}\\lambda',
+```
+
+averaging over time windows `average_window` at interval `interval`. The outputted field
+is scaled to be in sverdrup (10⁶ m³ s⁻¹) units.
+
+$(TYPEDFIELDS)
+"""
+@kwdef struct BarotropicStreamFunction{T} <: AbstractHorizontalOutputType{T}
     "Time interval to record output at / s"
     interval::T = 30day
     "Time window to accumulate output averages over / s"
@@ -627,6 +658,7 @@ label(::LatitudeDepthSlice) = :latitude_depth_slice
 label(::DepthTimeAveraged) = :depth_time_averaged
 label(::FreeSurfaceFields) = :free_surface_fields
 label(::MOCStreamFunction) = :moc_stream_function
+label(::BarotropicStreamFunction) = :barotropic_stream_function
 
 """
 Spatial grid indices output type records fields at.
@@ -663,11 +695,21 @@ outputs(::FreeSurfaceFields, model) = merge(
     model.free_surface.filtered_state
 )
 outputs(::MOCStreamFunction, model) = (;
-    Ψ = Field(
+    # Scale velocities by 1 / 10⁶ so doubly spatially integrated field is in
+    # units 10⁶ m³ s⁻¹ = Sv (Sverdrup)
+    Ψᴹ = Field(
         CumulativeIntegral(
-            # Scale velocities by 1 / 10⁶ so doubly spatially integrated field is in
-            # units 10⁶ m³ s⁻¹ = Sv (Sverdrup)
+
             Field(Integral(model.velocities.v * 1e-6, dims=1)), dims=3, reverse=true
+        )
+    )
+)
+outputs(::BarotropicStreamFunction, model) = (;
+    # Scale velocities by 1 / 10⁶ so doubly spatially integrated field is in
+    # units 10⁶ m³ s⁻¹ = Sv (Sverdrup)
+    Ψᴮ = Field(
+        CumulativeIntegral(
+            Field(Integral(model.velocities.v * 1e-6, dims=3)), dims=1
         )
     )
 )
@@ -680,7 +722,7 @@ $(TYPEDSIGNATURES)
 function schedule(::AbstractOutputType) end
 
 schedule(type::Union{SliceOutputType, FreeSurfaceFields}) = TimeInterval(type.interval)
-schedule(type::Union{DepthTimeAveraged, MOCStreamFunction}) = AveragedTimeInterval(
+schedule(type::Union{DepthTimeAveraged, MOCStreamFunction, BarotropicStreamFunction}) = AveragedTimeInterval(
     type.interval, window=type.average_window
 )
 
@@ -936,8 +978,11 @@ const DEFAULT_VARIABLE_PLOT_CONFIGURATIONS = Dict{String, VariablePlotConfigurat
         :balance, 
         AutoVariableLimits()
     ),
-    "Ψ" => VariablePlotConfiguration(
-        "MOC stream function Ψ", "Sv", :balance, GyreInABox.AutoVariableLimits()
+    "Ψᴹ" => VariablePlotConfiguration(
+        "MOC stream function Ψᴹ", "Sv", :balance, GyreInABox.AutoVariableLimits()
+    ),
+    "Ψᴮ" => VariablePlotConfiguration(
+        "Barotropic stream function Ψᴮ", "Sv", :balance, GyreInABox.AutoVariableLimits()
     ),
 )
 
