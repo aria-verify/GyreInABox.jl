@@ -95,25 +95,25 @@ save("initial_temperature_and_salinity.svg", figure)
 
 The below example illustrates setting up and running a simulation of the model with the
 default parameter values and configuration modulo changing the model to record only a
-horizontal (surface) slice and depth slice along longitude axis as outputs. The
-resulting horizontal and depth slices of simulated fields are recorded as an animation
-using CairoMakie. A coarse default grid size (60 × 60 × 15) and small simulation time
-(60 days) are set so as to allow a simulation to run in around 5 minutes on a CPU, but
-if running on a GPU (controlled by `architecture` keyword argument to
-`GyreInABoxConfiguration`) then finer spatial discretizations and longer simulation
-times can easily be used.
+horizontal (surface) slice and depth slice along longitude axis as outputs, and
+decreasing the progress message update frequency. The resulting horizontal and depth
+slices of simulated fields are recorded as an animation using CairoMakie. A coarse
+default grid size (60 × 60 × 15) and small simulation time (60 days) are set so as to
+allow a simulation to run in around 5 minutes on a CPU, but if running on a GPU
+(controlled by `architecture` keyword argument to `GyreInABoxConfiguration`) then finer
+spatial discretizations and longer simulation times can easily be used.
 
 ```@example
 using Oceananigans.Units
 using GyreInABox
 
 parameters = GyreInABoxParameters()
-output_types = (LongitudeDepthSlice(), HorizontalSlice())
-configuration = GyreInABoxConfiguration(output_types=output_types)
+configuration = GyreInABoxConfiguration(
+    output_types=(LongitudeDepthSlice(), HorizontalSlice()),
+    progress_message_interval=400
+)
 run_simulation(parameters, configuration)
-for output_type in output_types
-    record_animation(configuration, output_type)
-end
+record_animations(configuration)
 nothing # hide
 ```
 
