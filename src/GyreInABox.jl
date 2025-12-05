@@ -46,18 +46,19 @@ module GyreInABox
 
 using DocStringExtensions
 using Oceananigans
-using Oceananigans.Advection
-using Oceananigans.Coriolis
+using Oceananigans.Advection: AbstractAdvectionScheme
+using Oceananigans.Coriolis: AbstractRotation
 using Oceananigans.Grids
-using Oceananigans.TurbulenceClosures
+using Oceananigans.TurbulenceClosures: AbstractTurbulenceClosure
 using Oceananigans.Units
+using Oceananigans.Utils: AbstractSchedule
 using SeawaterPolynomials: TEOS10EquationOfState
 using CairoMakie
 using Printf
 
 export GyreInABoxParameters, GyreInABoxConfiguration
 export HorizontalSlice, LongitudeDepthSlice, LatitudeDepthSlice
-export DepthTimeAveraged, FreeSurfaceFields, MOCStreamFunction, BarotropicStreamFunction
+export DepthAveraged, FreeSurfaceFields, MOCStreamFunction, BarotropicStreamFunction
 export setup_model, initialize_model!, setup_simulation
 export run_simulation, record_animation
 
@@ -121,13 +122,13 @@ $(TYPEDFIELDS)
 end
 
 
-abstract type AbstractOutputType{T} end
+abstract type AbstractOutput{S} end
 
-abstract type AbstractHorizontalOutputType{T} <: AbstractOutputType{T} end
+abstract type AbstractHorizontalOutput{S} <: AbstractOutput{S} end
 
-abstract type AbstractVerticalOutputType{T} <: AbstractOutputType{T} end
+abstract type AbstractVerticalOutput{S} <: AbstractOutput{S} end
 
-abstract type AbstractLatitudeDepthOutputType{T} <: AbstractVerticalOutputType{T} end
+abstract type AbstractLatitudeDepthOutput{S} <: AbstractVerticalOutput{S} end
 
 """
 $(TYPEDEF)
@@ -138,16 +139,15 @@ $(TYPEDSIGNATURES)
     
 ## Details
 
-Records horizontal slices through model velocity and tracer fields at specified depth
-and interval.
+Records horizontal slices through model velocity and tracer fields at specified depth.
 
 $(TYPEDFIELDS)
 """
-@kwdef struct HorizontalSlice{T} <: AbstractHorizontalOutputType{T}
+@kwdef struct HorizontalSlice{S, T} <: AbstractHorizontalOutput{S}
     "Depth of slice / m"
     depth::T = 0.
-    "Time interval to record output at / s"
-    interval::T = 1day
+    "Schedule to record output at"
+    schedule::S = TimeInterval(1day)
 end
 
 """
@@ -159,16 +159,15 @@ $(TYPEDSIGNATURES)
     
 ## Details
 
-Records vertical slices through model velocity and tracer fields at specified latitude
-and interval.
+Records vertical slices through model velocity and tracer fields at specified latitude.
 
 $(TYPEDFIELDS)
 """
-@kwdef struct LongitudeDepthSlice{T} <: AbstractVerticalOutputType{T}
+@kwdef struct LongitudeDepthSlice{S, T} <: AbstractVerticalOutput{S}
     "Latitude of slice / °"
     latitude::T = 45.
-    "Time interval to record output at / s"
-    interval::T = 1day
+    "Schedule to record output at"
+    schedule::S = TimeInterval(1day)
 end
 
 """
@@ -180,16 +179,35 @@ $(TYPEDSIGNATURES)
     
 ## Details
 
-Records vertical slices through model velocity and tracer fields at specified longitude
-and interval.
+Records vertical slices through model velocity and tracer fields at specified longitude.
 
 $(TYPEDFIELDS)
 """
-@kwdef struct LatitudeDepthSlice{T} <: AbstractLatitudeDepthOutputType{T}
+@kwdef struct LatitudeDepthSlice{S, T} <: AbstractLatitudeDepthOutput{S}
     "Longitude of slice / °"
     longitude::T = 30.
+    "Schedule to record output at"
+    schedule::S = TimeInterval(1day)
+end
+
+SliceOutputType = Union{HorizontalSlice, LongitudeDepthSlice, LatitudeDepthSlice}
+
+"""
+$(TYPEDEF)
+
+Free surface fields output.
+    
+$(TYPEDSIGNATURES)
+    
+## Details
+
+Records two-dimensional free surface (height and barotropic velocity) fields.
+
+$(TYPEDFIELDS)
+"""
+@kwdef struct FreeSurfaceFields{S} <: AbstractHorizontalOutput{S}
     "Time interval to record output at / s"
-    interval::T = 1day
+    schedule::S = TimeInterval(1day)
 end
 
 """
@@ -201,16 +219,14 @@ $(TYPEDSIGNATURES)
     
 ## Details
 
-Records horizontal fields corresponding to depth averaged model velocity and traced 
-fields temporally averaged over a specified window and a given temporal interval.
+Records horizontal fields corresponding to depth averaged model velocity and tracer
+fields.
 
 $(TYPEDFIELDS)
 """
-@kwdef struct DepthTimeAveraged{T} <: AbstractHorizontalOutputType{T}
-    "Time interval to record output at / s"
-    interval::T = 30day
-    "Time window to accumulate output averages over / s"
-    average_window::T = 30day
+@kwdef struct DepthAveraged{S} <: AbstractHorizontalOutput{S}
+    "Schedule to record output at"
+    schedule::S = AveragedTimeInterval(30day, window=30day)
 end
 
 """
@@ -230,19 +246,15 @@ integral with respect to depth - of zonally integrated meridional velocity compo
 \\Psi(\\varphi, z, t) = 
 \\int_{0}^z \\int_{\\lambda_W}^{\\lambda_E} 
   v(\\lambda, \\varphi, z', t)
-\\,\\mathrm{d}\\lambda \\,\\mathrm{d}z',
+\\,\\mathrm{d}\\lambda \\,\\mathrm{d}z'
 ```
 
-averaging over time windows `average_window` at interval `interval`. The outputted field
-is scaled to be in sverdrup (10⁶ m³ s⁻¹) units.
+The outputted field is scaled to be in sverdrup (10⁶ m³ s⁻¹) units.
 
 $(TYPEDFIELDS)
 """
-@kwdef struct MOCStreamFunction{T} <: AbstractLatitudeDepthOutputType{T}
-    "Time interval to record output at / s"
-    interval::T = 30day
-    "Time window to accumulate output averages over / s"
-    average_window::T = 30day
+@kwdef struct MOCStreamFunction{S} <: AbstractLatitudeDepthOutput{S}
+    schedule::S = AveragedTimeInterval(30day, window=30day)
 end
 
 """
@@ -262,40 +274,15 @@ respect to longitude - of depth integrated meridional velocity component:
 \\Psi^B(\\lambda, \\varphi, t) = 
 \\int_{\\lambda_W}^{\\lambda}  \\int_{z_B}^{z_S} 
   v(\\lambda', \\varphi, z, t)
-\\,\\mathrm{d}z \\,\\mathrm{d}\\lambda',
+\\,\\mathrm{d}z \\,\\mathrm{d}\\lambda'
 ```
 
-averaging over time windows `average_window` at interval `interval`. The outputted field
-is scaled to be in sverdrup (10⁶ m³ s⁻¹) units.
+The outputted field is scaled to be in sverdrup (10⁶ m³ s⁻¹) units.
 
 $(TYPEDFIELDS)
 """
-@kwdef struct BarotropicStreamFunction{T} <: AbstractHorizontalOutputType{T}
-    "Time interval to record output at / s"
-    interval::T = 30day
-    "Time window to accumulate output averages over / s"
-    average_window::T = 30day
-end
-
-SliceOutputType = Union{HorizontalSlice, LongitudeDepthSlice, LatitudeDepthSlice}
-
-"""
-$(TYPEDEF)
-
-Free surface fields output.
-    
-$(TYPEDSIGNATURES)
-    
-## Details
-
-Records two-dimensional free surface fields (filtered and unfiltered height and
-barotropic velocity) fields at a given temporal interval.
-
-$(TYPEDFIELDS)
-"""
-@kwdef struct FreeSurfaceFields{T} <: AbstractHorizontalOutputType{T}
-    "Time interval to record output at / s"
-    interval::T = 1day
+@kwdef struct BarotropicStreamFunction{S} <: AbstractHorizontalOutput{S}
+    schedule::S = AveragedTimeInterval(30day, window=30day)
 end
 
 """
@@ -320,9 +307,9 @@ $(TYPEDFIELDS)
     T,
     A<:Oceananigans.AbstractArchitecture,
     EOS,
-    MA<:Oceananigans.Advection.AbstractAdvectionScheme,
-    C<:Oceananigans.Coriolis.AbstractRotation,
-    TC<:Oceananigans.TurbulenceClosures.AbstractTurbulenceClosure
+    MA<:AbstractAdvectionScheme,
+    C<:AbstractRotation,
+    TC<:AbstractTurbulenceClosure
 }
     "Computational architecture to run simulation on"
     architecture::A = Oceananigans.CPU()
@@ -369,8 +356,8 @@ $(TYPEDFIELDS)
         HorizontalSlice(),
         LongitudeDepthSlice(),
         LatitudeDepthSlice(),
-        DepthTimeAveraged(),
         FreeSurfaceFields(),
+        MOCStreamFunction()
     )
 end
 
@@ -650,12 +637,16 @@ Symbol label for output type to use in naming output file and registering output
 
 $(TYPEDSIGNATURES)
 """
-function label(::AbstractOutputType) end
+function label(::AbstractOutput) end
 
-label(::HorizontalSlice) = :horizontal_slice
-label(::LongitudeDepthSlice) = :longitude_depth_slice
-label(::LatitudeDepthSlice) = :latitude_depth_slice
-label(::DepthTimeAveraged) = :depth_time_averaged
+label(output::HorizontalSlice) = Symbol("horizontal_slice_at_depth_$(output.depth)m")
+label(output::LongitudeDepthSlice) = Symbol(
+    "longitude_depth_slice_at_latitude_$(output.latitude)deg"
+)
+label(output::LatitudeDepthSlice) = Symbol(
+    "latitude_depth_slice_at_longitude_$(output.longitude)deg"
+)
+label(::DepthAveraged) = :depth_averaged
 label(::FreeSurfaceFields) = :free_surface_fields
 label(::MOCStreamFunction) = :moc_stream_function
 label(::BarotropicStreamFunction) = :barotropic_stream_function
@@ -665,16 +656,16 @@ Spatial grid indices output type records fields at.
 
 $(TYPEDSIGNATURES)
 """
-indices(::AbstractOutputType, grid) = (:, :, :)
+indices(::AbstractOutput, grid) = (:, :, :)
 
-indices(type::HorizontalSlice, grid) = (
-    :, :, clamp(searchsortedfirst(znodes(grid, Face()), type.depth), 1:grid.Nz)
+indices(output::HorizontalSlice, grid) = (
+    :, :, clamp(searchsortedfirst(znodes(grid, Face()), output.depth), 1:grid.Nz)
 )
-indices(type::LongitudeDepthSlice, grid) = (
-    :, clamp(searchsortedfirst(φnodes(grid, Face()), type.latitude), 1:grid.Ny), :
+indices(output::LongitudeDepthSlice, grid) = (
+    :, clamp(searchsortedfirst(φnodes(grid, Face()), output.latitude), 1:grid.Ny), :
 )
-indices(type::LatitudeDepthSlice, grid) = (
-    clamp(searchsortedfirst(λnodes(grid, Face()), type.longitude), 1:grid.Nx), :, :
+indices(output::LatitudeDepthSlice, grid) = (
+    clamp(searchsortedfirst(λnodes(grid, Face()), output.longitude), 1:grid.Nx), :, :
 )
 
 """
@@ -682,17 +673,16 @@ Named tuple of output variables (fields) to record for output type.
     
 $(TYPEDSIGNATURES)
 """
-function outputs(::AbstractOutputType, model) end
+function outputs(::AbstractOutput, model) end
 
 outputs(::SliceOutputType, model) = merge(model.velocities, model.tracers)
-outputs(::DepthTimeAveraged, model) = NamedTuple(
+outputs(::DepthAveraged, model) = NamedTuple(
     name => Field(Average(variable, dims=3))
     for (name, variable) in pairs(merge(model.velocities, model.tracers))
 )
 outputs(::FreeSurfaceFields, model) = merge(
     (; η=model.free_surface.η),
-    model.free_surface.barotropic_velocities,
-    model.free_surface.filtered_state
+    model.free_surface.barotropic_velocities
 )
 outputs(::MOCStreamFunction, model) = (;
     # Scale velocities by 1 / 10⁶ so doubly spatially integrated field is in
@@ -719,12 +709,7 @@ Time schedule to record output type at.
 
 $(TYPEDSIGNATURES)
 """
-function schedule(::AbstractOutputType) end
-
-schedule(type::Union{SliceOutputType, FreeSurfaceFields}) = TimeInterval(type.interval)
-schedule(type::Union{DepthTimeAveraged, MOCStreamFunction, BarotropicStreamFunction}) = AveragedTimeInterval(
-    type.interval, window=type.average_window
-)
+schedule(output::AbstractOutput) = output.schedule
 
 """
 Filename to record outputs to.
@@ -733,18 +718,17 @@ $(TYPEDSIGNATURES)
 
 ## Details
 
-Output filename stem is specified in `configuration`. For an output type `type`
-a label computed using `label` function is appended on to stem and file extension is
-specified by `extension` added.
+For an output type `output` a label computed using `label` function is appended on to
+`stem`` and file extension is specified by `extension` added.
 """
 output_filename(
-    configuration::GyreInABoxConfiguration, label::Symbol, extension::String
-) = "$(configuration.output_filename)_$(label).$(extension)"
+    stem::String, label::Symbol, extension::String
+) = "$(stem)_$(label).$(extension)"
 output_filename(
-    configuration::GyreInABoxConfiguration,
-    type::AbstractOutputType,
+    stem::String,
+    output::AbstractOutput,
     extension::String="jld2"
-) = output_filename(configuration, label(type), extension)
+) = output_filename(stem, label(output), extension)
 
 """
 Register output writers for output types specified in `configuration` in `simulation`.
@@ -753,30 +737,28 @@ $(SIGNATURES)
 """
 function add_output_writers!(
     simulation::Oceananigans.Simulation,
-    configuration::GyreInABoxConfiguration{T}
-) where {T}
-
+    output_types::Tuple,
+    output_filename_stem::String
+)
     model = simulation.model
     # Create a grid on CPU if not already to avoid issues with computing output field
     # indices from grid using scalar operations on GPU grids
     grid = (
-        isa(configuration.architecture, CPU) 
+        isa(model.grid.architecture, CPU) 
         ? model.grid 
-        : setup_grid(configuration, architecture=CPU())
+        : on_architecture(model.grid, CPU())
     )
 
-    for output_type in configuration.output_types
-        if output_type.interval <= configuration.simulation_time
-            simulation.output_writers[label(output_type)] = JLD2Writer(
-                model,
-                outputs(output_type, model),
-                filename=output_filename(configuration, output_type),
-                indices=indices(output_type, grid),
-                schedule=schedule(output_type),
-                overwrite_existing=true,
-                with_halos=true,
-            )
-        end
+    for output_type in output_types
+        simulation.output_writers[label(output_type)] = JLD2Writer(
+            model,
+            outputs(output_type, model),
+            filename=output_filename(output_filename_stem, output_type),
+            indices=indices(output_type, grid),
+            schedule=schedule(output_type),
+            overwrite_existing=true,
+            with_halos=true,
+        )
     end
 
     nothing
@@ -841,7 +823,9 @@ function setup_simulation(
         wizard, IterationInterval(configuration.wizard_update_interval)
     )
     add_progress_message_callback!(simulation, configuration)
-    add_output_writers!(simulation, configuration)
+    add_output_writers!(
+        simulation, configuration.output_types, configuration.output_filename
+    )
     simulation
 end
 
@@ -866,21 +850,21 @@ Label for horizontal axis for field heatmaps.
     
 $(TYPEDSIGNATURES)
 """
-function axis_xlabel(::AbstractOutputType) end
+function axis_xlabel(::AbstractOutput) end
 
-axis_xlabel(::AbstractHorizontalOutputType) = "Longitude λ / ᵒ"
+axis_xlabel(::AbstractHorizontalOutput) = "Longitude λ / ᵒ"
 axis_xlabel(::LongitudeDepthSlice) = "Longitude λ / ᵒ"
-axis_xlabel(::AbstractLatitudeDepthOutputType) = "Latitude ϕ / ᵒ"
+axis_xlabel(::AbstractLatitudeDepthOutput) = "Latitude ϕ / ᵒ"
 
 """
 Label for vertical axis for field heatmaps.
     
 $(TYPEDSIGNATURES)
 """
-function axis_ylabel(::AbstractOutputType) end
+function axis_ylabel(::AbstractOutput) end
 
-axis_ylabel(::AbstractHorizontalOutputType) = "Latitude ϕ / ᵒ"
-axis_ylabel(::AbstractVerticalOutputType) = "Depth z / m"
+axis_ylabel(::AbstractHorizontalOutput) = "Latitude ϕ / ᵒ"
+axis_ylabel(::AbstractVerticalOutput) = "Depth z / m"
 
 
 """
@@ -888,8 +872,8 @@ Aspect ratio for field heatmaps.
     
 $(TYPEDSIGNATURES)
 """
-axis_aspect_ratio(configuration, output_type::AbstractOutputType) = AxisAspect(1)
-axis_aspect_ratio(configuration, output_type::AbstractHorizontalOutputType) = AxisAspect(
+axis_aspect_ratio(configuration, ::AbstractOutput) = AxisAspect(1)
+axis_aspect_ratio(configuration, ::AbstractHorizontalOutput) = AxisAspect(
     abs(configuration.longitude_interval[1] - configuration.longitude_interval[2]) /
     abs(configuration.latitude_interval[1] - configuration.latitude_interval[2])
 )
@@ -899,15 +883,15 @@ Axis limits for field heatmaps.
     
 $(TYPEDSIGNATURES)
 """
-function axis_limits(configuration::GyreInABoxConfiguration, ::AbstractOutputType) end
+function axis_limits(configuration::GyreInABoxConfiguration, ::AbstractOutput) end
 
-axis_limits(configuration::GyreInABoxConfiguration, ::AbstractHorizontalOutputType) = (
+axis_limits(configuration::GyreInABoxConfiguration, ::AbstractHorizontalOutput) = (
     configuration.longitude_interval, configuration.latitude_interval
 )
 axis_limits(configuration::GyreInABoxConfiguration, ::LongitudeDepthSlice) = (
     configuration.longitude_interval, configuration.depth_interval
 )
-axis_limits(configuration::GyreInABoxConfiguration, ::AbstractLatitudeDepthOutputType) = (
+axis_limits(configuration::GyreInABoxConfiguration, ::AbstractLatitudeDepthOutput) = (
     configuration.latitude_interval, configuration.depth_interval
 )
 
@@ -966,18 +950,6 @@ const DEFAULT_VARIABLE_PLOT_CONFIGURATIONS = Dict{String, VariablePlotConfigurat
     "V" => VariablePlotConfiguration(
         "Barotropic meridional velocity V", "m² s⁻¹", :balance, AutoVariableLimits()
     ),
-    "η̅" => VariablePlotConfiguration(
-        "Filtered free surface height η̅", "m", :balance, AutoVariableLimits()
-    ),
-    "U̅" => VariablePlotConfiguration(
-        "Filtered barotropic zonal velocity U̅", "m² s⁻¹", :balance, AutoVariableLimits()
-    ),
-    "V̅" => VariablePlotConfiguration(
-        "Filtered barotropic meridional velocity V̅",
-        "m² s⁻¹",
-        :balance, 
-        AutoVariableLimits()
-    ),
     "Ψᴹ" => VariablePlotConfiguration(
         "MOC stream function Ψᴹ", "Sv", :balance, GyreInABox.AutoVariableLimits()
     ),
@@ -1018,7 +990,7 @@ in a tuple of variable names `exclude_variables`.
 """
 function record_animation(
     configuration::GyreInABoxConfiguration{T},
-    output_type::AbstractOutputType;
+    output_type::AbstractOutput;
     frame_rate::Int = 10,
     max_columns::Int = 3,
     axis_width::Int = 640,
@@ -1027,7 +999,7 @@ function record_animation(
     exclude_variables::Tuple = (),
     plot_configuration_overrides::Union{Dict, Nothing} = nothing
 ) where {T}
-    filepath = output_filename(configuration, output_type)
+    filepath = output_filename(configuration.output_filename, output_type)
     field_timeseries = FieldDataset(filepath).fields
     
     axis_kwargs = (
@@ -1087,7 +1059,7 @@ function record_animation(
 
     frames = 1:length(times)
 
-    output_file = output_filename(configuration, output_type, "mp4")
+    output_file = output_filename(configuration.output_filename, output_type, "mp4")
     @info "Recording an animation of $(label(output_type)) to $(output_file)..."
 
     CairoMakie.record(fig, output_file, frames, framerate=frame_rate) do i
