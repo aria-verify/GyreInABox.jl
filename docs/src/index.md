@@ -117,8 +117,8 @@ end
 nothing # hide
 ```
 
-![Example simulated output (longitude-depth slice)](gyre_model_longitude_depth_slice.mp4)
-![Example simulated output (horizontal slice)](gyre_model_horizontal_slice.mp4)
+![Example simulated output (longitude-depth slice)](gyre_model_longitude_depth_slice_at_latitude_45.0deg.mp4)
+![Example simulated output (horizontal slice)](gyre_model_horizontal_slice_at_depth_0.0m.mp4)
 
 ## API reference
 
