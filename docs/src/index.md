@@ -111,9 +111,7 @@ parameters = GyreInABoxParameters()
 output_types = (LongitudeDepthSlice(), HorizontalSlice())
 configuration = GyreInABoxConfiguration(output_types=output_types)
 run_simulation(parameters, configuration)
-for output_type in output_types
-    record_animation(configuration, output_type)
-end
+record_animations(configuration)
 nothing # hide
 ```
 
