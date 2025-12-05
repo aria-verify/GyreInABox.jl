@@ -60,7 +60,7 @@ export GyreInABoxParameters, GyreInABoxConfiguration
 export HorizontalSlice, LongitudeDepthSlice, LatitudeDepthSlice
 export DepthAveraged, FreeSurfaceFields, MOCStreamFunction, BarotropicStreamFunction
 export setup_model, initialize_model!, setup_simulation
-export run_simulation, record_animation
+export run_simulation, record_animations
 
 
 """
@@ -243,7 +243,7 @@ circulation - computed here as vertically accumulated - that is cumulative verti
 integral with respect to depth - of zonally integrated meridional velocity component:
 
 ```math
-\\Psi(\\varphi, z, t) = 
+\\Psi^M(\\varphi, z, t) = 
 \\int_{0}^z \\int_{\\lambda_W}^{\\lambda_E} 
   v(\\lambda, \\varphi, z', t)
 \\,\\mathrm{d}\\lambda \\,\\mathrm{d}z'
@@ -872,10 +872,9 @@ Aspect ratio for field heatmaps.
     
 $(TYPEDSIGNATURES)
 """
-axis_aspect_ratio(configuration, ::AbstractOutput) = AxisAspect(1)
-axis_aspect_ratio(configuration, ::AbstractHorizontalOutput) = AxisAspect(
-    abs(configuration.longitude_interval[1] - configuration.longitude_interval[2]) /
-    abs(configuration.latitude_interval[1] - configuration.latitude_interval[2])
+axis_aspect_ratio(::AbstractGrid, ::AbstractOutput) = AxisAspect(1)
+axis_aspect_ratio(grid::AbstractGrid, ::AbstractHorizontalOutput) = AxisAspect(
+    abs(-(extrema(λnodes(grid, Face()))...)) / abs(-(extrema(φnodes(grid, Face()))...))
 )
 
 """
@@ -883,16 +882,16 @@ Axis limits for field heatmaps.
     
 $(TYPEDSIGNATURES)
 """
-function axis_limits(configuration::GyreInABoxConfiguration, ::AbstractOutput) end
+function axis_limits(::AbstractGrid, ::AbstractOutput) end
 
-axis_limits(configuration::GyreInABoxConfiguration, ::AbstractHorizontalOutput) = (
-    configuration.longitude_interval, configuration.latitude_interval
+axis_limits(grid::AbstractGrid, ::AbstractHorizontalOutput) = (
+    extrema(λnodes(grid, Face())), extrema(φnodes(grid, Face()))
 )
-axis_limits(configuration::GyreInABoxConfiguration, ::LongitudeDepthSlice) = (
-    configuration.longitude_interval, configuration.depth_interval
+axis_limits(grid::AbstractGrid, ::LongitudeDepthSlice) = (
+    extrema(λnodes(grid, Face())), extrema(znodes(grid, Face()))
 )
-axis_limits(configuration::GyreInABoxConfiguration, ::AbstractLatitudeDepthOutput) = (
-    configuration.latitude_interval, configuration.depth_interval
+axis_limits(grid::AbstractGrid, ::AbstractLatitudeDepthOutput) = (
+    extrema(φnodes(grid, Face())), extrema(znodes(grid, Face()))
 )
 
 @kwdef struct AutoVariableLimits{T}
@@ -967,15 +966,35 @@ unit(variable_name::String) = DEFAULT_VARIABLE_PLOT_CONFIGURATIONS[variable_name
 unit(variable::Symbol) = unit(string(variable))
 
 """
-Record an animation of fields recorded as model output.
+Record animations of fields recorded as model output.
 
 $(SIGNATURES)
 
 ## Details
 
-Generates and record to file an animation of model outputs for a model configuration
-`configuration` and output type `output_type`. The simulation must have already been
-run for this configuration and with specified output type active.
+Generates and record to files animations of model outputs for a model configuration
+`configuration`. Keyword arguments `kwargs` are passed through to 
+[`record_animation()`](@ref) and can be used to customize plot output.
+"""
+function record_animations(configuration::GyreInABoxConfiguration; kwargs...)
+    grid = setup_grid(configuration, architecture=CPU())
+    for output_type in configuration.output_types
+        record_animation(configuration.output_filename, output_type, grid, kwargs...)
+    end
+
+end
+
+"""
+Record animation of fields recorded as model output.
+
+$(SIGNATURES)
+
+## Details
+
+Generates and record to file with filename stem `output_filename_stem` an animation of
+model outputs for output type `output_type` and for a model grid `grid`. The simulation
+must have already been run for a model with this grid and with specified output type
+active.
 
 Animation is recorded with a frame rate of `frame_rate` frames per second, with fields
 arranged on a grid with a maximum of `max_columns` columns, with the axis for each
@@ -989,8 +1008,9 @@ variable names to override. Specific variables to exclude from plot can be speci
 in a tuple of variable names `exclude_variables`.
 """
 function record_animation(
-    configuration::GyreInABoxConfiguration{T},
-    output_type::AbstractOutput;
+    output_filename_stem::String,
+    output_type::AbstractOutput,
+    grid::AbstractGrid;
     frame_rate::Int = 10,
     max_columns::Int = 3,
     axis_width::Int = 640,
@@ -998,15 +1018,15 @@ function record_animation(
     title_height::Int = 40,
     exclude_variables::Tuple = (),
     plot_configuration_overrides::Union{Dict, Nothing} = nothing
-) where {T}
-    filepath = output_filename(configuration.output_filename, output_type)
+)
+    filepath = output_filename(output_filename_stem, output_type)
     field_timeseries = FieldDataset(filepath).fields
     
     axis_kwargs = (
         xlabel=axis_xlabel(output_type),
         ylabel=axis_ylabel(output_type),
-        aspect=axis_aspect_ratio(configuration, output_type),
-        limits=axis_limits(configuration, output_type)
+        aspect=axis_aspect_ratio(grid, output_type),
+        limits=axis_limits(grid, output_type)
     )
     
     variable_plot_configurations = (
@@ -1059,7 +1079,7 @@ function record_animation(
 
     frames = 1:length(times)
 
-    output_file = output_filename(configuration.output_filename, output_type, "mp4")
+    output_file = output_filename(output_filename_stem, output_type, "mp4")
     @info "Recording an animation of $(label(output_type)) to $(output_file)..."
 
     CairoMakie.record(fig, output_file, frames, framerate=frame_rate) do i
