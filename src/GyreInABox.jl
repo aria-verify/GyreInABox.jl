@@ -46,12 +46,8 @@ module GyreInABox
 
 using DocStringExtensions
 using Oceananigans
-using Oceananigans.Advection: AbstractAdvectionScheme
-using Oceananigans.Coriolis: AbstractRotation
 using Oceananigans.Grids
-using Oceananigans.TurbulenceClosures: AbstractTurbulenceClosure
 using Oceananigans.Units
-using Oceananigans.Utils: AbstractSchedule
 using SeawaterPolynomials: TEOS10EquationOfState
 using CairoMakie
 using Printf

@@ -74,14 +74,7 @@ would not be typically calibrated to data.
 
 $(TYPEDFIELDS)
 """
-@kwdef struct GyreInABoxConfiguration{
-    T,
-    A<:Oceananigans.AbstractArchitecture,
-    EOS,
-    MA<:AbstractAdvectionScheme,
-    C<:AbstractRotation,
-    TC<:AbstractTurbulenceClosure
-}
+@kwdef struct GyreInABoxConfiguration{T, A, EOS, MA, C, TC}
     "Computational architecture to run simulation on"
     architecture::A = Oceananigans.CPU()
     "Momentum advection scheme"
