@@ -33,10 +33,10 @@ using GyreInABox
 using CairoMakie
 using Oceananigans
 
-parameters = GyreInABoxParameters()
-configuration = GyreInABoxConfiguration()
+parameters = DoubleGyreParameters()
+configuration = SimulationConfiguration()
 
-grid = GyreInABox.setup_grid(configuration)
+grid = GyreInABox.grid(parameters, CPU())
 
 λ, φ, z = nodes(grid, Center(), Center(), Center())
 
@@ -100,20 +100,20 @@ decreasing the progress message update frequency. The resulting horizontal and d
 slices of simulated fields are recorded as an animation using CairoMakie. A coarse
 default grid size (60 × 60 × 15) and small simulation time (60 days) are set so as to
 allow a simulation to run in around 5 minutes on a CPU, but if running on a GPU
-(controlled by `architecture` keyword argument to `GyreInABoxConfiguration`) then finer
+(controlled by `architecture` keyword argument to `SimulationConfiguration`) then finer
 spatial discretizations and longer simulation times can easily be used.
 
 ```@example
 using Oceananigans.Units
 using GyreInABox
 
-parameters = GyreInABoxParameters()
-configuration = GyreInABoxConfiguration(
+parameters = DoubleGyreParameters()
+configuration = SimulationConfiguration(
     output_types=(LongitudeDepthSlice(), HorizontalSlice()),
     progress_message_interval=400
 )
 run_simulation(parameters, configuration)
-record_animations(configuration)
+record_animations(parameters, configuration)
 nothing # hide
 ```
 
