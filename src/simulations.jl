@@ -1,12 +1,53 @@
 """
+$(TYPEDEF)
+
+Configuration for ocean gyre model simulation
+    
+$(TYPEDSIGNATURES)
+    
+## Details
+
+Variables defining overall configuration of simulation such as architecture to run on,
+temporal discretization and outputs to record.
+
+$(TYPEDFIELDS)
+"""
+@kwdef struct SimulationConfiguration{T, A}
+    "Computational architecture to run simulation on"
+    architecture::A = Oceananigans.CPU()
+    "Time to simulate for / s"
+    simulation_time::T = 60day
+    "Initial time step to use / s"
+    initial_timestep::T = 10minute
+    "Maximum time step to use in time step adaptation / s"
+    maximum_timestep::T = 30minute
+    "Stem of output file names"
+    output_filename::String = "gyre_model"
+    "Iteration interval between progress messages"
+    progress_message_interval::Int = 40
+    "Target (advective) CFL number for time stepping wizard"
+    target_cfl::T = 0.2
+    "Update (iteration) interval for time stepping wizard"
+    wizard_update_interval::Int = 10
+    "Maximum relative time step change in each wizard update"
+    wizard_max_change::T = 1.5
+    "Output types to record during simulation"
+    output_types::Tuple = (
+        HorizontalSlice(),
+        FreeSurfaceFields(),
+        BarotropicStreamFunction()
+    )
+end
+
+"""
 Add callback for progress updates as configured in `configuration` in `simulation`.
 
 $(SIGNATURES)
 """
 function add_progress_message_callback!(
     simulation::Oceananigans.Simulation,
-    configuration::GyreInABoxConfiguration{T}
-) where {T}
+    configuration::SimulationConfiguration
+)
     fields = merge(simulation.model.velocities, simulation.model.tracers)
     iteration_format_string = "Iteration: %04d, time: %s, Δt: %s, wall time: %s\n  "
     variables_format_string = join(
@@ -41,8 +82,8 @@ $(SIGNATURES)
 """
 function setup_simulation(
     model::Oceananigans.AbstractModel,
-    configuration::GyreInABoxConfiguration{T}
-) where {T}
+    configuration::SimulationConfiguration
+)
     simulation = Simulation(
         model,
         Δt=configuration.initial_timestep,
@@ -70,11 +111,11 @@ and configuration `configuration`.
 $(SIGNATURES)
 """
 function run_simulation(
-    parameters::GyreInABoxParameters{T},
-    configuration::GyreInABoxConfiguration{T}
-) where {T}
-    model = setup_model(parameters, configuration)
-    initialize_model!(model, parameters)
+    parameters::AbstractParameters,
+    configuration::SimulationConfiguration
+)
+    model = setup_model(parameters, architecture=configuration.architecture)
+    initialize!(model, parameters)
     simulation = setup_simulation(model, configuration)
     run!(simulation)
 end
@@ -86,12 +127,12 @@ $(SIGNATURES)
 
 ## Details
 
-Generates and record to files animations of model outputs for a model configuration
-`configuration`. Keyword arguments `kwargs` are passed through to 
-[`record_animation()`](@ref) and can be used to customize plot output.
+Generates and record to files animations of model outputs on grid `grid` and 
+for a simulation configuration `configuration`. Keyword arguments `kwargs` 
+are passed through to [`record_animation()`](@ref) and can be used to customize
+plot output.
 """
-function record_animations(configuration::GyreInABoxConfiguration; kwargs...)
-    grid = setup_grid(configuration, architecture=CPU())
+function record_animations(grid::AbstractGrid, configuration::SimulationConfiguration; kwargs...)
     for output_type in configuration.output_types
         record_animation(configuration.output_filename, output_type, grid, kwargs...)
     end

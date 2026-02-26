@@ -52,18 +52,17 @@ using SeawaterPolynomials: TEOS10EquationOfState
 using CairoMakie
 using Printf
 
-export GyreInABoxParameters, GyreInABoxConfiguration
+export DoubleGyreParameters
+export SimulationConfiguration
 export HorizontalSlice, LongitudeDepthSlice, LatitudeDepthSlice
 export DepthAveraged, FreeSurfaceFields, MOCStreamFunction, BarotropicStreamFunction
-export setup_model, initialize_model!, setup_simulation
+export setup_model, initialize!, setup_simulation
 export run_simulation, record_animations
 
-include("parameters.jl")
-include("grids.jl")
-include("boundary_conditions.jl")
-include("initial_conditions.jl")
 include("models.jl")
 include("simulations.jl")
 include("outputs.jl")
+include("utils.jl")
+include("double_gyre.jl")
 
 end
