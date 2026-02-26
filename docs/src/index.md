@@ -113,7 +113,7 @@ configuration = SimulationConfiguration(
     progress_message_interval=400
 )
 run_simulation(parameters, configuration)
-record_animations(configuration)
+record_animations(parameters, configuration)
 nothing # hide
 ```
 
