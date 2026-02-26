@@ -9,7 +9,7 @@ abstract type AbstractParameters{T} end
 
 Initialize state of ocean gyre model `model` with parameters `parameters`.
 """
-function intialize! end
+function initialize! end
 
 """
     $(FUNCTIONNAME)(parameters, architecture::Oceananigans.AbstractArchitecture)
