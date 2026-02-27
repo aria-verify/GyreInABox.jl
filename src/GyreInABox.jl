@@ -52,7 +52,7 @@ using SeawaterPolynomials: TEOS10EquationOfState
 using CairoMakie
 using Printf
 
-export DoubleGyreParameters
+export DoubleGyreParameters, Spall2011Parameters
 export SimulationConfiguration
 export HorizontalSlice, LongitudeDepthSlice, LatitudeDepthSlice, XDepthSlice, YDepthSlice
 export DepthAveraged, FreeSurfaceFields, MOCStreamFunction, BarotropicStreamFunction
@@ -64,5 +64,6 @@ include("simulations.jl")
 include("outputs.jl")
 include("utils.jl")
 include("double_gyre.jl")
+include("spall_2011.jl")
 
 end
