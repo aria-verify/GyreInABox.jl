@@ -210,7 +210,7 @@ outputs(::DepthAveraged, model) = NamedTuple(
     for (name, variable) in pairs(merge(model.velocities, model.tracers))
 )
 outputs(::FreeSurfaceFields, model) = merge(
-    (; η=model.free_surface.η),
+    (; η=model.free_surface.displacement),
     model.free_surface.barotropic_velocities
 )
 outputs(::MOCStreamFunction, model) = (;

@@ -271,7 +271,7 @@ function buoyancy(::DoubleGyreParameters)
     SeawaterBuoyancy(; equation_of_state=TEOS10EquationOfState())
 end
 
-tracers(::DoubleGyreParameters) = (:T, :S, :e)
+tracers(::DoubleGyreParameters) = (:T, :S)
 
 forcing(::DoubleGyreParameters) = NamedTuple()
 
