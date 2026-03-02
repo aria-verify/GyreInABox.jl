@@ -54,7 +54,7 @@ using Printf
 
 export DoubleGyreParameters
 export SimulationConfiguration
-export HorizontalSlice, LongitudeDepthSlice, LatitudeDepthSlice
+export HorizontalSlice, LongitudeDepthSlice, LatitudeDepthSlice, XDepthSlice, YDepthSlice
 export DepthAveraged, FreeSurfaceFields, MOCStreamFunction, BarotropicStreamFunction
 export setup_model, initialize!, setup_simulation
 export run_simulation, record_animations
