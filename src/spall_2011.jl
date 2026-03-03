@@ -48,6 +48,8 @@ $(TYPEDFIELDS)
     southern_region_temperature_relaxation_time::T = 20day
     "Southern region extent / m"
     southern_region_extent::T = 200kilometers
+    "Southern region boundary smoothing window / m"
+    southern_boundary_window_width::T = 0.
     "Scale factor for exponentially spaced depth grid"
     depth_grid_scale_factor::T = 825.0
     "Domain size in x dimension / m"
@@ -152,8 +154,17 @@ end
     )
 end
 
-@inline southern_boundary_region_mask(x, y, z, p::Spall2011Parameters) =
-    y < p.southern_region_extent
+@inline function southern_boundary_region_mask(x, y, z, p::Spall2011Parameters)
+    if p.southern_boundary_window_width == 0
+        y < p.southern_region_extent
+    else
+        # Use a smooth step function at boundary of mask
+        # Distance from boundary normalized by window width and offset by 0.5 as
+        # smooth_step interopolates from 0 to 1 over (0, 1) interval
+        d = (p.southern_region_extent - y) / p.southern_boundary_window_width + 0.5
+        smooth_step(d)
+    end
+end
 
 @inline function southern_boundary_temperature_target(x, y, z, t, p::Spall2011Parameters)
     p.southern_surface_temperature +

@@ -21,3 +21,16 @@ function hyperbolically_spaced_faces(k, size, lower, upper, stretching_factor)
     (upper - lower) * tanh(stretching_factor * (k - 1) / size) / tanh(stretching_factor)
 end
 
+"""
+Smooth piecewise defined step function that is zero for negative `d`, one for `d > 1`
+and smoothly interpolates between these values for `0 ≤ d ≤ 1`.
+"""
+function smooth_step(d)
+    if d < 0.
+        0
+    elseif d < 1
+        3d^2 - 2d^3
+    else
+        1.
+    end
+end
