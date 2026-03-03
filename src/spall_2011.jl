@@ -28,8 +28,6 @@ $(TYPEDFIELDS)
     surface_temperature_restoring_strength::T = 20.
     "Southern boundary temperature vertical stratification / s⁻²"
     southern_boundary_vertical_stratification::T = 2e-6
-    "Horizontal viscosity turbulence closure coefficient (non-dimensional)"
-    horizontal_viscosity_coefficient::T = 2.5
     "Vertical scalar viscosity turbulence closure coefficient / m² s⁻¹"
     vertical_viscosity_coefficient::T = 1e-5
     "Vertical scalar diffusivity turbulence closure coefficient / m² s⁻¹"
@@ -225,14 +223,10 @@ function buoyancy(parameters::Spall2011Parameters)
 end
 
 function closure(parameters::Spall2011Parameters)
-    vertical_closure = VerticalScalarDiffusivity(;
+    VerticalScalarDiffusivity(;
         ν=parameters.vertical_viscosity_coefficient,
         κ=parameters.vertical_diffusivity_coefficient,
     )
-    horizontal_closure = Oceananigans.TurbulenceClosures.Smagorinskys.Smagorinsky(;
-        coefficient=(parameters.horizontal_viscosity_coefficient / π)
-    )
-    (horizontal_closure, vertical_closure)
 end
 
 coriolis(parameters::Spall2011Parameters) = BetaPlane(parameters.coriolis_offset, parameters.coriolis_coefficient)
