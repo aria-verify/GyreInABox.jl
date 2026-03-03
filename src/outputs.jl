@@ -559,7 +559,7 @@ function record_animation(
     title_height::Int=40,
     exclude_variables::Tuple=(),
     plot_configuration_overrides::Union{Dict,Nothing}=nothing,
-    frame_step::Int=1
+    frame_step::Int=1,
 )
     filepath = output_filename(output_filename_stem, output_type)
     field_timeseries = FieldDataset(filepath).fields
