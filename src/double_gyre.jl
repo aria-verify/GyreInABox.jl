@@ -9,17 +9,17 @@ $(TYPEDFIELDS)
 """
 @kwdef struct DoubleGyreParameters{T} <: AbstractParameters{T}
     "Grid dimensions in longitude, latitude and depth"
-    grid_size::Tuple = (60, 60, 15)
+    grid_size::NTuple{3, Int} = (60, 60, 15)
     "Extent of spatial domain in longitude / °"
-    longitude_interval::Tuple = (0, 60)
+    longitude_interval::NTuple{2, Int} = (0, 60)
     "Extent of spatial domain in latitude / °"
-    latitude_interval::Tuple = (15, 75)
+    latitude_interval::NTuple{2, Int} = (15, 75)
     "Extent of spatial domain in depth / m"
-    depth_interval::Tuple = (-1.8kilometers, 0)
+    depth_interval::NTuple{2, T} = (-1.8kilometers, 0.)
     "Stretching factor for hyperbolic spaced depth grid"
     depth_stretching_factor::T = 1.2
     "Dimensions of grid halo region in longitude, latitude and depth"
-    halo_size::Tuple = (6, 6, 3)
+    halo_size::NTuple{3, Int} = (6, 6, 3)
     "Average zonal wind velocity 10 meters above the ocean / m s⁻¹"
     u_10::T = 10.0
     "Dimensionless drag coefficient"
