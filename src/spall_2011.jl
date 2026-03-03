@@ -13,9 +13,9 @@ $(TYPEDFIELDS)
 """
 @kwdef struct Spall2011Parameters{T} <: AbstractParameters{T}
     "Grid dimensions in x, y and depth"
-    grid_size::Tuple = (200, 400, 20)
+    grid_size::NTuple{3, Int} = (200, 400, 20)
     "Dimensions of grid halo region in x, y and depth"
-    halo_size::Tuple = (7, 7, 4)
+    halo_size::NTuple{3, Int} = (7, 7, 4)
     "β-plane Coriolis offset parameters / s⁻¹"
     coriolis_offset::T = 1.2e-4
     "β-plane Coriolis coefficient parameter / m⁻¹s⁻¹"
