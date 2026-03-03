@@ -126,7 +126,7 @@ function record_animations(
     grid::AbstractGrid, configuration::SimulationConfiguration; kwargs...
 )
     for output_type in configuration.output_types
-        record_animation(configuration.output_filename, output_type, grid, kwargs...)
+        record_animation(configuration.output_filename, output_type, grid; kwargs...)
     end
 end
 
