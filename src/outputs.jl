@@ -539,7 +539,8 @@ active.
 Animation is recorded with a frame rate of `frame_rate` frames per second, with fields
 arranged on a grid with a maximum of `max_columns` columns, with the axis for each
 field heatmap of size `(axis_width, axis_height)` in pixels and a further `title_height`
-pixels allowed at the top of the figure for a title showing the simulation time.
+pixels allowed at the top of the figure for a title showing the simulation time. Each
+frame of animation steps `frame_step` time indices through field time series.
 
 By default the plot configurations for each field variable are taken from the
 `GyreInABox.DEFAULT_VARIABLE_PLOT_CONFIGURATIONS` dictionary but these can be overridden
@@ -558,6 +559,7 @@ function record_animation(
     title_height::Int=40,
     exclude_variables::Tuple=(),
     plot_configuration_overrides::Union{Dict,Nothing}=nothing,
+    frame_step::Int=1
 )
     filepath = output_filename(output_filename_stem, output_type)
     field_timeseries = FieldDataset(filepath).fields
@@ -619,7 +621,7 @@ function record_animation(
 
     fig[1, 1:(n_columns * 2)] = Label(fig, title; fontsize=20, tellwidth=false)
 
-    frames = 1:length(times)
+    frames = 1:frame_step:length(times)
 
     output_file = output_filename(output_filename_stem, output_type, "mp4")
     @info "Recording an animation of $(label(output_type)) to $(output_file)..."
