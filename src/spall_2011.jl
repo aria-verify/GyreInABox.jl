@@ -152,7 +152,7 @@ end
     )
 end
 
-@inline function southern_boundary_region_mask(x, y, z, p::Spall2011Parameters)
+@inline function southern_region_mask(x, y, z, p::Spall2011Parameters)
     if p.southern_boundary_window_width == 0
         y < p.southern_region_extent
     else
@@ -164,10 +164,22 @@ end
     end
 end
 
-@inline function southern_boundary_temperature_target(x, y, z, t, p::Spall2011Parameters)
+@inline function southern_region_temperature_target(x, y, z, t, p::Spall2011Parameters)
     p.southern_surface_temperature +
     z * p.sea_water_density * p.southern_boundary_vertical_stratification /
     (p.thermal_expansion_coefficient * Oceananigans.defaults.gravitational_acceleration)
+end
+
+@inline function southern_region_temperature_forcing(
+    i, j, k, grid, clock, model_fields, parameters::Spall2011Parameters
+)
+    t = clock.time
+    x, y, z = node(i, j, k, grid, Center(), Center(), Center())
+    return @inbounds( 
+        southern_region_mask(x, y, z, parameters) * (
+            southern_region_temperature_target(x, y, z, t, parameters) - model_fields.T[i, j, k]
+        ) / parameters.southern_region_temperature_relaxation_time
+    )
 end
 
 function boundary_conditions(parameters::Spall2011Parameters{T}) where {T}
@@ -184,12 +196,7 @@ function boundary_conditions(parameters::Spall2011Parameters{T}) where {T}
 end
 
 function forcing(parameters::Spall2011Parameters)
-    southern_region_temperature_forcing = Relaxation(
-        rate=1 / parameters.southern_region_temperature_relaxation_time,
-        target=(x, y, z, t) -> southern_boundary_temperature_target(x, y, z, t, parameters),
-        mask=(x, y, z) -> southern_boundary_region_mask(x, y, z, parameters),
-    )
-    return (; T=southern_region_temperature_forcing)
+    (; T=Forcing(southern_region_temperature_forcing; discrete_form=true, parameters))
 end
 
 function grid(parameters::Spall2011Parameters, architecture::Oceananigans.AbstractArchitecture)
@@ -237,7 +244,7 @@ function initialize!(
     model::Oceananigans.AbstractModel,
     parameters::Spall2011Parameters
 )
-    T_initial(x, y, z) = southern_boundary_temperature_target(x, y, z, nothing, parameters)
+    T_initial(x, y, z) = southern_region_temperature_target(x, y, z, nothing, parameters)
     set!(model, u=0., v=0., T=T_initial, S=0.)
     nothing
 end
