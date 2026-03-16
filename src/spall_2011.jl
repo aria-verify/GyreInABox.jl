@@ -26,8 +26,8 @@ $(TYPEDFIELDS)
     meridional_wind_stress::T = 0.0
     "Surface temperature restoring strength / W m⁻² K⁻¹"
     surface_temperature_restoring_strength::T = 20.
-    "Southern boundary temperature vertical stratification / s⁻²"
-    southern_boundary_vertical_stratification::T = 2e-6
+    "Buoyancy vertical stratification coefficient / s⁻²"
+    vertical_stratification::T = 2e-6
     "Vertical scalar viscosity turbulence closure coefficient / m² s⁻¹"
     vertical_viscosity_coefficient::T = 1e-5
     "Vertical scalar diffusivity turbulence closure coefficient / m² s⁻¹"
@@ -166,10 +166,16 @@ end
     end
 end
 
-@inline function southern_region_temperature_target(x, y, z, t, p::Spall2011Parameters)
-    p.southern_surface_temperature +
-    z * p.sea_water_density * p.southern_boundary_vertical_stratification /
+@inline function vertically_stratified_temperature(
+    z, surface_temperature, p::Spall2011Parameters
+)
+    surface_temperature +
+    z * p.sea_water_density * p.vertical_stratification /
     (p.thermal_expansion_coefficient * Oceananigans.defaults.gravitational_acceleration)
+end
+
+@inline function southern_region_temperature_target(x, y, z, t, p::Spall2011Parameters)
+    vertically_stratified_temperature(z, p.southern_surface_temperature, p)
 end
 
 @inline function southern_region_temperature_forcing(
@@ -235,10 +241,10 @@ function closure(parameters::Spall2011Parameters)
     if parameter.use_catke_closure
         CATKEVerticalDiffusivity()
     else
-    VerticalScalarDiffusivity(;
-        ν=parameters.vertical_viscosity_coefficient,
-        κ=parameters.vertical_diffusivity_coefficient,
-    )
+        VerticalScalarDiffusivity(;
+            ν=parameters.vertical_viscosity_coefficient,
+            κ=parameters.vertical_diffusivity_coefficient,
+        )
     end
 end
 
@@ -250,7 +256,14 @@ function initialize!(
     model::Oceananigans.AbstractModel,
     parameters::Spall2011Parameters
 )
-    T_initial(x, y, z) = southern_region_temperature_target(x, y, z, nothing, parameters)
+    function T_initial(x, y, z)
+        surface_temperature = if parameters.initialize_with_reference_surface_temperature
+            reference_surface_temperature(x, y, parameters)
+        else
+            parameters.southern_surface_temperature, parameters
+        end
+        vertically_stratified_temperature(z, surface_temperature, parameters)
+    end
     set!(model, u=0., v=0., T=T_initial, S=0.)
     nothing
 end
