@@ -68,6 +68,8 @@ $(TYPEDFIELDS)
     side_slope_top_depth::T = 50meters
     "Width of slope on top wall of domain / m"
     top_slope_width::T = 20kilometers
+    "Whether to use CATKE rather than scalar vertical diffusivity turbulence closure"
+    use_catke_closure::Bool = true
 end
 
 function zonal_surface_wind_stress(x, y, t, parameters::Spall2011Parameters)
@@ -230,10 +232,14 @@ function buoyancy(parameters::Spall2011Parameters)
 end
 
 function closure(parameters::Spall2011Parameters)
+    if parameter.use_catke_closure
+        CATKEVerticalDiffusivity()
+    else
     VerticalScalarDiffusivity(;
         ν=parameters.vertical_viscosity_coefficient,
         κ=parameters.vertical_diffusivity_coefficient,
     )
+    end
 end
 
 coriolis(parameters::Spall2011Parameters) = BetaPlane(parameters.coriolis_offset, parameters.coriolis_coefficient)
