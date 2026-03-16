@@ -70,16 +70,20 @@ $(TYPEDFIELDS)
     top_slope_width::T = 20kilometers
     "Whether to use CATKE rather than scalar vertical diffusivity turbulence closure"
     use_catke_closure::Bool = true
+    "Whether to initialise with reference surface temperature or constant"
+    initialize_with_reference_surface_temperature::Bool = true
+    "Surface wind forcing ramp-up time scale / s"
+    surface_wind_forcing_ramp_up_timescale::T = 10day
 end
 
 function zonal_surface_wind_stress(x, y, t, parameters::Spall2011Parameters)
     (parameters.zonal_wind_stress / parameters.sea_water_density) *
-    cospi(y / parameters.domain_size_y)
+    smooth_step(t / parameters.surface_wind_forcing_ramp_up_timescale) * cospi(y / parameters.domain_size_y)
 end
 
 function meridional_surface_wind_stress(x, y, t, parameters::Spall2011Parameters)
     (parameters.meridional_wind_stress / parameters.sea_water_density) *
-    cospi(x / parameters.domain_size_x)
+    smooth_step(t / parameters.surface_wind_forcing_ramp_up_timescale) * cospi(x / parameters.domain_size_x)
 end
 
 function sill_profile(y, center, width, height)
