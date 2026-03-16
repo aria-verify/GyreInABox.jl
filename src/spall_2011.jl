@@ -247,7 +247,7 @@ function buoyancy(parameters::Spall2011Parameters)
 end
 
 function closure(parameters::Spall2011Parameters)
-    if parameter.use_catke_closure
+    if parameters.use_catke_closure
         CATKEVerticalDiffusivity()
     else
         VerticalScalarDiffusivity(;
