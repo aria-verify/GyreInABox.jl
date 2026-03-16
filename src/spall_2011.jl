@@ -13,9 +13,9 @@ $(TYPEDFIELDS)
 """
 @kwdef struct Spall2011Parameters{T} <: AbstractParameters{T}
     "Grid dimensions in x, y and depth"
-    grid_size::NTuple{3, Int} = (200, 400, 20)
+    grid_size::NTuple{3,Int} = (200, 400, 20)
     "Dimensions of grid halo region in x, y and depth"
-    halo_size::NTuple{3, Int} = (7, 7, 4)
+    halo_size::NTuple{3,Int} = (7, 7, 4)
     "β-plane Coriolis offset parameters / s⁻¹"
     coriolis_offset::T = 1.2e-4
     "β-plane Coriolis coefficient parameter / m⁻¹s⁻¹"
@@ -25,7 +25,7 @@ $(TYPEDFIELDS)
     "Meridional wind stress amplitue / N m⁻²"
     meridional_wind_stress::T = 0.0
     "Surface temperature restoring strength / W m⁻² K⁻¹"
-    surface_temperature_restoring_strength::T = 20.
+    surface_temperature_restoring_strength::T = 20.0
     "Buoyancy vertical stratification coefficient / s⁻²"
     vertical_stratification::T = 2e-6
     "Vertical scalar viscosity turbulence closure coefficient / m² s⁻¹"
@@ -47,7 +47,7 @@ $(TYPEDFIELDS)
     "Southern region extent / m"
     southern_region_extent::T = 200kilometers
     "Southern region boundary smoothing window / m"
-    southern_boundary_window_width::T = 0.
+    southern_boundary_window_width::T = 0.0
     "Scale factor for exponentially spaced depth grid"
     depth_grid_scale_factor::T = 825.0
     "Domain size in x dimension / m"
@@ -78,12 +78,14 @@ end
 
 function zonal_surface_wind_stress(x, y, t, parameters::Spall2011Parameters)
     (parameters.zonal_wind_stress / parameters.sea_water_density) *
-    smooth_step(t / parameters.surface_wind_forcing_ramp_up_timescale) * cospi(y / parameters.domain_size_y)
+    smooth_step(t / parameters.surface_wind_forcing_ramp_up_timescale) *
+    cospi(y / parameters.domain_size_y)
 end
 
 function meridional_surface_wind_stress(x, y, t, parameters::Spall2011Parameters)
     (parameters.meridional_wind_stress / parameters.sea_water_density) *
-    smooth_step(t / parameters.surface_wind_forcing_ramp_up_timescale) * cospi(x / parameters.domain_size_x)
+    smooth_step(t / parameters.surface_wind_forcing_ramp_up_timescale) *
+    cospi(x / parameters.domain_size_x)
 end
 
 function sill_profile(y, center, width, height)
@@ -187,9 +189,10 @@ end
 )
     t = clock.time
     x, y, z = node(i, j, k, grid, Center(), Center(), Center())
-    return @inbounds( 
+    return @inbounds(
         southern_region_mask(x, y, z, parameters) * (
-            southern_region_temperature_target(x, y, z, t, parameters) - model_fields.T[i, j, k]
+            southern_region_temperature_target(x, y, z, t, parameters) -
+            model_fields.T[i, j, k]
         ) / parameters.southern_region_temperature_relaxation_time
     )
 end
@@ -211,7 +214,9 @@ function forcing(parameters::Spall2011Parameters)
     (; T=Forcing(southern_region_temperature_forcing; discrete_form=true, parameters))
 end
 
-function grid(parameters::Spall2011Parameters, architecture::Oceananigans.AbstractArchitecture)
+function grid(
+    parameters::Spall2011Parameters, architecture::Oceananigans.AbstractArchitecture
+)
     underlying_grid = RectilinearGrid(
         architecture;
         size=parameters.grid_size,
@@ -252,14 +257,13 @@ function closure(parameters::Spall2011Parameters)
     end
 end
 
-coriolis(parameters::Spall2011Parameters) = BetaPlane(parameters.coriolis_offset, parameters.coriolis_coefficient)
+function coriolis(parameters::Spall2011Parameters)
+    BetaPlane(parameters.coriolis_offset, parameters.coriolis_coefficient)
+end
 tracers(parameters::Spall2011Parameters) = (:T, :S)
 momentum_advection(parameters::Spall2011Parameters) = Oceananigans.WENOVectorInvariant()
 
-function initialize!(
-    model::Oceananigans.AbstractModel,
-    parameters::Spall2011Parameters
-)
+function initialize!(model::Oceananigans.AbstractModel, parameters::Spall2011Parameters)
     function T_initial(x, y, z)
         surface_temperature = if parameters.initialize_with_reference_surface_temperature
             reference_surface_temperature(x, y, parameters)
@@ -268,6 +272,6 @@ function initialize!(
         end
         vertically_stratified_temperature(z, surface_temperature, parameters)
     end
-    set!(model, u=0., v=0., T=T_initial, S=0.)
+    set!(model; u=0.0, v=0.0, T=T_initial, S=0.0)
     nothing
 end
