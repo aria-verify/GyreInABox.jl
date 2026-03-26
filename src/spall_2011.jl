@@ -9,6 +9,12 @@ $(TYPEDSIGNATURES)
 
 Real-valued parameters of model controlling initial and boundary conditions.
 
+## References
+
+1. Spall, M.A., 2011. On the Role of Eddies and Surface Forcing in the Heat Transport 
+   and Overturning Circulation in Marginal Seas. Journal of Climate, 24, 4844--4858,
+   https://doi.org/10.1175/2011JCLI4130.
+
 $(TYPEDFIELDS)
 """
 @kwdef struct Spall2011Parameters{T} <: AbstractParameters{T}
