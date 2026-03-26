@@ -525,6 +525,113 @@ function add_output_writers!(
 end
 
 """
+Get properties for customizing plot axis rendering for `output_type` on `grid`.
+"""
+axis_properties(output_type, grid) = (
+    xlabel=axis_xlabel(output_type, grid),
+    ylabel=axis_ylabel(output_type, grid),
+    aspect=AxisAspect(axis_aspect_ratio(output_type, grid)),
+    limits=axis_limits(output_type, grid),
+)
+
+function ordered_field_variables(
+    field_timeseries, variable_plot_configurations, exclude_variables
+)
+    sort(
+        tuple(
+            setdiff(
+                keys(field_timeseries) ∩ keys(variable_plot_configurations),
+                exclude_variables,
+            )...,
+        );
+        # Sort by tuple of variable name length and variable so that decorated variable
+        # names appear after undecorated variables
+        by=variable -> (length(variable), variable),
+    )
+end
+
+function get_variable_plot_configurations(plot_configuration_overrides)
+    if isnothing(plot_configuration_overrides)
+        DEFAULT_VARIABLE_PLOT_CONFIGURATIONS
+    else
+        merge(DEFAULT_VARIABLE_PLOT_CONFIGURATIONS, plot_configuration_overrides)
+    end
+end
+
+function plot_grid_dimensions(n_fields, max_columns)
+    n_columns = min(n_fields, max_columns)
+    n_rows = cld(n_fields, n_columns)
+    return (n_columns, n_rows)
+end
+
+function plot_row_column_indices(variable_index, n_columns)
+    row = (variable_index - 1) ÷ n_columns + 2
+    col = ((variable_index - 1) % n_columns) * 2 + 1
+    return (row, col)
+end
+
+function setup_figure(n_rows, n_columns, axis_width, axis_height, title_height)
+    Figure(;
+        # CairoMakie defaults to px_per_unit=2 so manually adjust figure size here to
+        # account for this - this is done in preference to changing px_per_unit using
+        # CairoMakie.activate! to avoid persisting change after function exit
+        size=(axis_width * n_columns / 2, (axis_height * n_rows + title_height) / 2),
+        fontsize=12,
+    )
+end
+
+function create_fields_plot_output(
+    plot_field_on_axis!,
+    get_title,
+    save_output,
+    output_kwargs,
+    output_filename_stem::String,
+    output_type::AbstractOutput,
+    grid::AbstractGrid;
+    max_columns::Int=3,
+    axis_width::Int=640,
+    axis_height::Int=480,
+    title_height::Int=40,
+    exclude_variables::Tuple=(),
+    plot_configuration_overrides::Union{Dict,Nothing}=nothing
+)
+    filepath = output_filename(output_filename_stem, output_type)
+    field_timeseries = FieldDataset(filepath).fields
+
+    axis_kwargs = axis_properties(output_type, grid)
+
+    variable_plot_configurations = get_variable_plot_configurations(plot_configuration_overrides)
+
+    field_variables = ordered_field_variables(
+        field_timeseries, variable_plot_configurations, exclude_variables
+    )
+
+    n_columns, n_rows = plot_grid_dimensions(length(field_variables), max_columns)
+
+    fig = setup_figure(n_rows, n_columns, axis_width, axis_height, title_height)
+
+    times = first(values(field_timeseries)).times
+
+    time_index = Observable(1)
+
+    for (variable_index, variable) in enumerate(field_variables)
+        config = variable_plot_configurations[variable]
+        row, col = plot_row_column_indices(variable_index, n_columns)
+        axis = Axis(fig[row, col]; title=config.label, axis_kwargs...)
+        artist = plot_field_on_axis!(axis, field_timeseries[variable], time_index, config; output_kwargs...)
+        Colorbar(fig[row, col + 1], artist; label=config.unit)
+    end
+
+    title = get_title(time_index, times; output_kwargs...)
+
+    fig[1, 1:(n_columns * 2)] = Label(fig, title; fontsize=20, tellwidth=false)
+
+    save_output(fig, times, time_index, output_filename_stem, output_type; output_kwargs...)
+
+    fig
+end
+
+"""
 Record animation of fields recorded as model output.
 
 $(SIGNATURES)
@@ -548,88 +655,102 @@ by passing a dictionary `plot_configuration_overrides` with keys corresponding t
 variable names to override. Specific variables to exclude from plot can be specified
 in a tuple of variable names `exclude_variables`.
 """
-function record_animation(
+function record_animations(
     output_filename_stem::String,
     output_type::AbstractOutput,
     grid::AbstractGrid;
     frame_rate::Int=10,
-    max_columns::Int=3,
-    axis_width::Int=640,
-    axis_height::Int=480,
-    title_height::Int=40,
-    exclude_variables::Tuple=(),
-    plot_configuration_overrides::Union{Dict,Nothing}=nothing,
     frame_step::Int=1,
+    plot_kwargs...
 )
-    filepath = output_filename(output_filename_stem, output_type)
-    field_timeseries = FieldDataset(filepath).fields
 
-    axis_kwargs = (
-        xlabel=axis_xlabel(output_type, grid),
-        ylabel=axis_ylabel(output_type, grid),
-        aspect=AxisAspect(axis_aspect_ratio(output_type, grid)),
-        limits=axis_limits(output_type, grid),
-    )
+    function plot_field_on_axis!(axis, field_timeseries, time_index, config; kwargs...)
+        color_range = variable_limits(config.limits, field_timeseries)
+        field = @lift field_timeseries[$time_index]
+        heatmap!(axis, field; colormap=config.color_map, colorrange=color_range)
+    end
 
-    variable_plot_configurations = (
-        if isnothing(plot_configuration_overrides)
-            DEFAULT_VARIABLE_PLOT_CONFIGURATIONS
-        else
-            merge(DEFAULT_VARIABLE_PLOT_CONFIGURATIONS, plot_configuration_overrides)
+    function get_title(time_index, times; kwargs...)
+        @lift @sprintf("t = %s", prettytime(times[$time_index]))
+    end
+
+    function save_output(fig, times, time_index, output_filename_stem, output_type; frame_step, frame_rate)
+        frames = 1:frame_step:length(times)
+
+        output_file = output_filename(output_filename_stem, output_type, "mp4")
+        @info "Recording an animation of $(label(output_type)) to $(output_file)..."
+
+        CairoMakie.record(fig, output_file, frames; framerate=frame_rate) do i
+            (i % 10 == 0) && @printf "Plotting frame %i of %i\n" i frames[end]
+            time_index[] = i
         end
-    )
-
-    field_variables = sort(
-        tuple(
-            setdiff(
-                keys(field_timeseries) ∩ keys(variable_plot_configurations),
-                exclude_variables,
-            )...,
-        );
-        # Sort by tuple of variable name length and variable so that decorated variable
-        # names appear after undecorated variables
-        by=variable -> (length(variable), variable),
-    )
-
-    n_fields = length(field_variables)
-    n_columns = min(n_fields, max_columns)
-    n_rows = cld(n_fields, n_columns)
-
-    fig = Figure(;
-        # CairoMakie defaults to px_per_unit=2 so manually adjust figure size here to
-        # account for this - this is done in preference to changing px_per_unit using
-        # CairoMakie.activate! to avoid persisting change after function exit
-        size=(axis_width * n_columns / 2, (axis_height * n_rows + title_height) / 2),
-        fontsize=12,
-    )
-
-    times = first(values(field_timeseries)).times
-    time_index = Observable(1)
-
-    for (variable_index, variable) in enumerate(field_variables)
-        config = variable_plot_configurations[variable]
-        color_range = variable_limits(config.limits, field_timeseries[variable])
-        field = @lift field_timeseries[variable][$time_index]
-        row = (variable_index - 1) ÷ n_columns + 2
-        col = ((variable_index - 1) % n_columns) * 2 + 1
-        axis = Axis(fig[row, col]; title=config.label, axis_kwargs...)
-        hmap = heatmap!(axis, field; colormap=config.color_map, colorrange=color_range)
-        Colorbar(fig[row, col + 1], hmap; label=config.unit)
     end
 
-    title = @lift @sprintf("t = %s", prettytime(times[$time_index]))
+    create_fields_plot_output(
+        plot_field_on_axis!,
+        get_title,
+        save_output,
+        (; frame_rate, frame_step),
+        output_filename_stem,
+        output_type,
+        grid;
+        plot_kwargs...,
+    )
+end
 
-    fig[1, 1:(n_columns * 2)] = Label(fig, title; fontsize=20, tellwidth=false)
+"""
+Plot temporal averages of fields recorded as model output.
 
-    frames = 1:frame_step:length(times)
+$(SIGNATURES)
 
-    output_file = output_filename(output_filename_stem, output_type, "mp4")
-    @info "Recording an animation of $(label(output_type)) to $(output_file)..."
+## Details
 
-    CairoMakie.record(fig, output_file, frames; framerate=frame_rate) do i
-        (i % 10 == 0) && @printf "Plotting frame %i of %i\n" i frames[end]
-        time_index[] = i
+Computes temporal averages for filename stem `output_filename_stem` of model outputs for
+output type `output_type` and for a model grid `grid`. The simulation
+must have already been run for a model with this grid and with specified output type
+active.
+
+The temporal averages are plotted as filled contour plots with `levels` levels, with fields
+arranged on a grid with a maximum of `max_columns` columns, with the axis for each
+field contour plot of size `(axis_width, axis_height)` in pixels and a further `title_height`
+pixels allowed at the top of the figure.
+
+By default the plot configurations for each field variable are taken from the
+`GyreInABox.DEFAULT_VARIABLE_PLOT_CONFIGURATIONS` dictionary but these can be overridden
+by passing a dictionary `plot_configuration_overrides` with keys corresponding to the
+variable names to override. Specific variables to exclude from plot can be specified
+in a tuple of variable names `exclude_variables`.
+"""
+function plot_time_averages(
+    output_filename_stem::String,
+    output_type::AbstractOutput,
+    grid::AbstractGrid;
+    levels::Union{AbstractVector, Int} = 10,
+    plot_kwargs...
+)
+
+    function plot_field_on_axis!(axis, field_timeseries, time_index, config; levels)
+        # mean(field_timeseries, dims=4) errors on Oceananigans v105.2 so manually construct mean
+        mean_field = sum(field_timeseries, dims=4) / length(field_timeseries)
+        contourf!(axis, mean_field; colormap=config.color_map, levels=levels)
     end
 
-    fig
+    function get_title(time_index, times; kwargs...)
+        @sprintf("Time average from\n%s to %s", prettytime(times[1]), prettytime(times[end]))
+    end
+
+    function save_output(fig, times, time_index, output_filename_stem, output_type; kwargs...)
+        save(output_filename(output_filename_stem, output_type, "svg"), fig)
+    end
+
+    create_fields_plot_output(
+        plot_field_on_axis!,
+        get_title,
+        save_output,
+        (; levels),
+        output_filename_stem,
+        output_type,
+        grid;
+        plot_kwargs...,
+    )
 end
