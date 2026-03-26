@@ -677,12 +677,12 @@ The temporal averages are plotted as filled contour plots.
 
 $(TYPEDFIELDS)
 """
-@kwdef struct TemporalAveragePlotOutput{V <: AbstractVector} <: AbstractPlotOutput
+@kwdef struct TemporalAveragePlotOutput{L <: Union{Int, AbstractVector}} <: AbstractPlotOutput
     """
     Either an integer specifying number of contour levels with range automatically
     determined or a vector of specific edge values to use.
     """
-    levels::Union{Int, V} = 10
+    levels::L = 10
 end
 
 function plot_field_on_axis!(axis, plot_output::TemporalAveragePlotOutput, field_timeseries, time_index, config)
