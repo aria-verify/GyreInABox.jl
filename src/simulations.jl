@@ -129,7 +129,7 @@ function plot_outputs(
     kwargs...
 )
     for output_type in configuration.output_types
-        plot_output(configuration.output_filename, output_type, grid; kwargs...)
+        plot_output(plot_output_type, configuration.output_filename, output_type, grid; kwargs...)
     end
 end
 
@@ -139,6 +139,6 @@ function plot_outputs(
     configuration::SimulationConfiguration;
     kwargs...
 )
-    plot_output(plot_output_type, grid(parameters, CPU()), configuration; kwargs...)
+    plot_outputs(plot_output_type, grid(parameters, CPU()), configuration; kwargs...)
 end
 
