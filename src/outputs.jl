@@ -631,11 +631,12 @@ Animated field plot output type.
 
 Specifies recording an animation of model output fields recording during a simulation.
 
-Animation is recorded with a frame rate of `frame_rate` frames per second and each
-frame of animation steps `frame_step` time indices through field time series.
+$(TYPEDFIELDS)
 """
 @kwdef struct AnimationPlotOutput <: AbstractPlotOutput
+    "Frame rate (frames per second) to record animation at."
     frame_rate::Int = 10
+    "Number of time indices to step through in field time series on each frame."
     frame_step::Int = 1
 end
 
@@ -672,11 +673,15 @@ Field temporal average plot output type.
 
 Specifies plotting temporal average of model output fields recording during a simulation.
 
-The temporal averages are plotted as filled contour plots with `levels` levels, either
-an integer specifying number of levels with range automatically determined or a vector
-of specific edge values to use.
+The temporal averages are plotted as filled contour plots.
+
+$(TYPEDFIELDS)
 """
 @kwdef struct TemporalAveragePlotOutput{V <: AbstractVector} <: AbstractPlotOutput
+    """
+    Either an integer specifying number of contour levels with range automatically
+    determined or a vector of specific edge values to use.
+    """
     levels::Union{Int, V} = 10
 end
 
