@@ -580,11 +580,146 @@ function setup_figure(n_rows, n_columns, axis_width, axis_height, title_height)
     )
 end
 
-function create_fields_plot_output(
-    plot_field_on_axis!,
-    get_title,
-    save_output,
-    output_kwargs,
+abstract type AbstractPlotOutput end
+
+"""
+    $(FUNCTIONNAME)(axis, plot_output_type, field_timeseries, time_index, config)
+
+Plots visual representation of `field_timeseries` appropriate for `plot_output_type`
+output type on `axis`, optionally using observable `time_index` to index into
+`field_timeseries` and with plot configuration options for variable represented
+in `field_timeseries` specified in `config`.
+
+$(TYPEDSIGNATURES)
+"""
+function plot_field_on_axis! end
+
+"""
+    $(FUNCTIONNAME)(plot_output_type, time_index, times)
+
+Constructs figure title for `plot_output_type` output type optionally using information
+about simulation times in `times` and observable time index `time_index`.
+
+$(TYPEDSIGNATURES)
+"""
+function get_title end
+
+"""
+    $(FUNCTIONNAME)(
+        plot_output_type,
+        fig,
+        times,
+        time_index,
+        output_filename_stem,
+        model_output_type
+    )
+
+Saves plot file output for `plot_output_type` and `model_output_type` visualized on
+Makie figure `fig` with model outputs recorded with `output_filename_step`, optionally
+using simulation times `times` and observable `time_index`.
+
+$(TYPEDSIGNATURES)
+"""
+function save_output end
+
+"""
+$(TYPEDEF)
+
+Animated field plot output type.
+
+## Details
+
+Specifies recording an animation of model output fields recording during a simulation.
+
+Animation is recorded with a frame rate of `frame_rate` frames per second and each
+frame of animation steps `frame_step` time indices through field time series.
+"""
+@kwdef struct AnimationPlotOutput <: AbstractPlotOutput
+    frame_rate::Int = 10
+    frame_step::Int = 1
+end
+
+function plot_field_on_axis!(axis, ::AnimationPlotOutput, field_timeseries, time_index, config)
+    color_range = variable_limits(config.limits, field_timeseries)
+    field = @lift field_timeseries[$time_index]
+    heatmap!(axis, field; colormap=config.color_map, colorrange=color_range)
+end
+
+function get_title(::AnimationPlotOutput, time_index, times)
+    @lift @sprintf("t = %s", prettytime(times[$time_index]))
+end
+
+function save_output(
+    plot_output_type::AnimationPlotOutput, fig, times, time_index, output_filename_stem, model_output_type
+)
+    frames = 1:plot_output_type.frame_step:length(times)
+
+    output_file = output_filename(output_filename_stem, model_output_type, "mp4")
+    @info "Recording an animation of $(label(model_output_type)) to $(output_file)..."
+
+    CairoMakie.record(fig, output_file, frames; framerate=plot_output_type.frame_rate) do i
+        (i % 10 == 0) && @printf "Plotting frame %i of %i\n" i frames[end]
+        time_index[] = i
+    end
+end
+
+"""
+$(TYPEDEF)
+
+Field temporal average plot output type.
+
+## Details
+
+Specifies plotting temporal average of model output fields recording during a simulation.
+
+The temporal averages are plotted as filled contour plots with `levels` levels, either
+an integer specifying number of levels with range automatically determined or a vector
+of specific edge values to use.
+"""
+@kwdef struct TemporalAveragePlotOutput{V <: AbstractVector} <: AbstractPlotOutput
+    levels::Union{Int, V} = 10
+end
+
+function plot_field_on_axis!(axis, plot_output::TemporalAveragePlotOutput, field_timeseries, time_index, config)
+    # mean(field_timeseries, dims=4) errors on Oceananigans v105.2 so manually construct mean
+    mean_field = sum(field_timeseries, dims=4) / length(field_timeseries)
+    contourf!(axis, mean_field; colormap=config.color_map, levels=plot_output.levels)
+end
+
+function get_title(::TemporalAveragePlotOutput, time_index, times)
+    @sprintf("Time average from\n%s to %s", prettytime(times[1]), prettytime(times[end]))
+end
+
+function save_output(::TemporalAveragePlotOutput, fig, times, time_index, output_filename_stem, model_output)
+    save(output_filename(output_filename_stem, model_output, "svg"), fig)
+end
+
+"""
+Create plot of fields recorded as model output.
+
+$(SIGNATURES)
+
+## Details
+
+Generates and record to file with filename stem `output_filename_stem` an animation of
+model outputs for output type `output_type` and for a model grid `grid`. The simulation
+must have already been run for a model with this grid and with specified output type
+active.
+
+Animation is recorded with a frame rate of `frame_rate` frames per second, with fields
+arranged on a grid with a maximum of `max_columns` columns, with the axis for each
+field heatmap of size `(axis_width, axis_height)` in pixels and a further `title_height`
+pixels allowed at the top of the figure for a title showing the simulation time. Each
+frame of animation steps `frame_step` time indices through field time series.
+
+By default the plot configurations for each field variable are taken from the
+`GyreInABox.DEFAULT_VARIABLE_PLOT_CONFIGURATIONS` dictionary but these can be overridden
+by passing a dictionary `plot_configuration_overrides` with keys corresponding to the
+variable names to override. Specific variables to exclude from plot can be specified
+in a tuple of variable names `exclude_variables`.
+"""
+function plot_output(
+    plot_output_type::AbstractPlotOutput,
     output_filename_stem::String,
     output_type::AbstractOutput,
     grid::AbstractGrid;
@@ -618,139 +753,17 @@ function create_fields_plot_output(
         config = variable_plot_configurations[variable]
         row, col = plot_row_column_indices(variable_index, n_columns)
         axis = Axis(fig[row, col]; title=config.label, axis_kwargs...)
-        artist = plot_field_on_axis!(axis, field_timeseries[variable], time_index, config; output_kwargs...)
+        artist = plot_field_on_axis!(
+            axis, plot_output_type,  field_timeseries[variable], time_index, config
+        )
         Colorbar(fig[row, col + 1], artist; label=config.unit)
     end
 
-    title = get_title(time_index, times; output_kwargs...)
+    title = get_title(plot_output_type, time_index, times)
 
     fig[1, 1:(n_columns * 2)] = Label(fig, title; fontsize=20, tellwidth=false)
 
-    save_output(fig, times, time_index, output_filename_stem, output_type; output_kwargs...)
+    save_output(plot_output_type, fig, times, time_index, output_filename_stem, output_type)
 
     fig
-end
-
-"""
-Record animation of fields recorded as model output.
-
-$(SIGNATURES)
-
-## Details
-
-Generates and record to file with filename stem `output_filename_stem` an animation of
-model outputs for output type `output_type` and for a model grid `grid`. The simulation
-must have already been run for a model with this grid and with specified output type
-active.
-
-Animation is recorded with a frame rate of `frame_rate` frames per second, with fields
-arranged on a grid with a maximum of `max_columns` columns, with the axis for each
-field heatmap of size `(axis_width, axis_height)` in pixels and a further `title_height`
-pixels allowed at the top of the figure for a title showing the simulation time. Each
-frame of animation steps `frame_step` time indices through field time series.
-
-By default the plot configurations for each field variable are taken from the
-`GyreInABox.DEFAULT_VARIABLE_PLOT_CONFIGURATIONS` dictionary but these can be overridden
-by passing a dictionary `plot_configuration_overrides` with keys corresponding to the
-variable names to override. Specific variables to exclude from plot can be specified
-in a tuple of variable names `exclude_variables`.
-"""
-function record_animations(
-    output_filename_stem::String,
-    output_type::AbstractOutput,
-    grid::AbstractGrid;
-    frame_rate::Int=10,
-    frame_step::Int=1,
-    plot_kwargs...
-)
-
-    function plot_field_on_axis!(axis, field_timeseries, time_index, config; kwargs...)
-        color_range = variable_limits(config.limits, field_timeseries)
-        field = @lift field_timeseries[$time_index]
-        heatmap!(axis, field; colormap=config.color_map, colorrange=color_range)
-    end
-
-    function get_title(time_index, times; kwargs...)
-        @lift @sprintf("t = %s", prettytime(times[$time_index]))
-    end
-
-    function save_output(fig, times, time_index, output_filename_stem, output_type; frame_step, frame_rate)
-        frames = 1:frame_step:length(times)
-
-        output_file = output_filename(output_filename_stem, output_type, "mp4")
-        @info "Recording an animation of $(label(output_type)) to $(output_file)..."
-
-        CairoMakie.record(fig, output_file, frames; framerate=frame_rate) do i
-            (i % 10 == 0) && @printf "Plotting frame %i of %i\n" i frames[end]
-            time_index[] = i
-        end
-    end
-
-    create_fields_plot_output(
-        plot_field_on_axis!,
-        get_title,
-        save_output,
-        (; frame_rate, frame_step),
-        output_filename_stem,
-        output_type,
-        grid;
-        plot_kwargs...,
-    )
-end
-
-"""
-Plot temporal averages of fields recorded as model output.
-
-$(SIGNATURES)
-
-## Details
-
-Computes temporal averages for filename stem `output_filename_stem` of model outputs for
-output type `output_type` and for a model grid `grid`. The simulation
-must have already been run for a model with this grid and with specified output type
-active.
-
-The temporal averages are plotted as filled contour plots with `levels` levels, with fields
-arranged on a grid with a maximum of `max_columns` columns, with the axis for each
-field contour plot of size `(axis_width, axis_height)` in pixels and a further `title_height`
-pixels allowed at the top of the figure.
-
-By default the plot configurations for each field variable are taken from the
-`GyreInABox.DEFAULT_VARIABLE_PLOT_CONFIGURATIONS` dictionary but these can be overridden
-by passing a dictionary `plot_configuration_overrides` with keys corresponding to the
-variable names to override. Specific variables to exclude from plot can be specified
-in a tuple of variable names `exclude_variables`.
-"""
-function plot_time_averages(
-    output_filename_stem::String,
-    output_type::AbstractOutput,
-    grid::AbstractGrid;
-    levels::Union{AbstractVector, Int} = 10,
-    plot_kwargs...
-)
-
-    function plot_field_on_axis!(axis, field_timeseries, time_index, config; levels)
-        # mean(field_timeseries, dims=4) errors on Oceananigans v105.2 so manually construct mean
-        mean_field = sum(field_timeseries, dims=4) / length(field_timeseries)
-        contourf!(axis, mean_field; colormap=config.color_map, levels=levels)
-    end
-
-    function get_title(time_index, times; kwargs...)
-        @sprintf("Time average from\n%s to %s", prettytime(times[1]), prettytime(times[end]))
-    end
-
-    function save_output(fig, times, time_index, output_filename_stem, output_type; kwargs...)
-        save(output_filename(output_filename_stem, output_type, "svg"), fig)
-    end
-
-    create_fields_plot_output(
-        plot_field_on_axis!,
-        get_title,
-        save_output,
-        (; levels),
-        output_filename_stem,
-        output_type,
-        grid;
-        plot_kwargs...,
-    )
 end

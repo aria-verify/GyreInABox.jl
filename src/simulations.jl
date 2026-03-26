@@ -111,28 +111,34 @@ function run_simulation(
 end
 
 """
-Record animations of fields recorded as simulation output.
+Plot outputs of fields recorded as simulation output.
 
 $(SIGNATURES)
 
 ## Details
 
-Generates and record to files animations of model outputs on grid `grid` and 
-for a simulation configuration `configuration`. Keyword arguments `kwargs` 
-are passed through to [`record_animation()`](@ref) and can be used to customize
-plot output.
+Generates and record to files plots of type `plot_output_type` for model 
+outputs on grid `grid` and  for a simulation configuration `configuration`. 
+Keyword arguments `kwargs`  are passed through to [`plot_output()`](@ref)
+and can be used to customize plot output.
 """
-function record_animations(
-    grid::AbstractGrid, configuration::SimulationConfiguration; kwargs...
+function plot_outputs(
+    plot_output_type::AbstractPlotOutput,
+    grid::AbstractGrid,
+    configuration::SimulationConfiguration;
+    kwargs...
 )
     for output_type in configuration.output_types
-        record_animation(configuration.output_filename, output_type, grid; kwargs...)
+        plot_output(configuration.output_filename, output_type, grid; kwargs...)
     end
 end
 
-function record_animations(
-    parameters::AbstractParameters, configuration::SimulationConfiguration; kwargs...
+function plot_outputs(
+    plot_output_type::AbstractPlotOutput,
+    parameters::AbstractParameters,
+    configuration::SimulationConfiguration;
+    kwargs...
 )
-    record_animations(grid(parameters, CPU()), configuration; kwargs...)
+    plot_output(plot_output_type, grid(parameters, CPU()), configuration; kwargs...)
 end
 
