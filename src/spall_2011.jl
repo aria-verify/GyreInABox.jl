@@ -76,6 +76,12 @@ $(TYPEDFIELDS)
     top_slope_width::T = 20kilometers
     "Whether to use CATKE rather than scalar vertical diffusivity turbulence closure"
     use_catke_closure::Bool = true
+    "Whether to include a Gent-McWilliams isopycnal diffusivity as a parameterization for the mesoscale eddy fluxes."
+    use_eddy_closure::Bool = false
+    "Gent-McWilliams isopycnal diffusivity closure coefficient controlling eddy-induced transport"
+    eddy_induced_tranport_coefficient::T = 1e3
+    "Gent-McWilliams isopycnal diffusivity closure coefficient controlling along isopycnal diffusion"
+    isopycnal_diffusion_coefficient::T = 1e3
     "Whether to initialise with reference surface temperature or constant"
     initialize_with_reference_surface_temperature::Bool = true
     "Surface wind forcing ramp-up time scale / s"
@@ -253,13 +259,23 @@ function buoyancy(parameters::Spall2011Parameters)
 end
 
 function closure(parameters::Spall2011Parameters)
-    if parameters.use_catke_closure
+    vertical_mixing = if parameters.use_catke_closure
         CATKEVerticalDiffusivity()
     else
         VerticalScalarDiffusivity(;
             ν=parameters.vertical_viscosity_coefficient,
             κ=parameters.vertical_diffusivity_coefficient,
         )
+    end
+    if parameters.use_eddy_closure
+        eddy_closure = Oceananigans.TurbulenceClosures.IsopycnalSkewSymmetricDiffusivity(
+            κ_skew=parameters.eddy_induced_tranport_coefficient,
+            κ_symmetric=parameters.isopycnal_diffusion_coefficient,
+            skew_flux_formulation=Oceananigans.TurbulenceClosures.AdvectiveFormulation()
+        )
+        (eddy_closure, vertical_mixing)
+    else
+        vertical_mixing
     end
 end
 
