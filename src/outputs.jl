@@ -230,12 +230,15 @@ $(TYPEDSIGNATURES)
 function label(::AbstractModelOutput) end
 
 label(output::HorizontalSlice) = Symbol("horizontal_slice_at_depth_$(output.depth)m")
+
 function label(output::LongitudeDepthSlice)
     Symbol("longitude_depth_slice_at_latitude_$(output.latitude)deg")
 end
+
 function label(output::LatitudeDepthSlice)
     Symbol("latitude_depth_slice_at_longitude_$(output.longitude)deg")
 end
+
 label(output::XDepthSlice) = Symbol("x_depth_slice_at_y_$(output.y)m")
 label(output::YDepthSlice) = Symbol("y_depth_slice_at_x_$(output.x)m")
 label(::DepthAveraged) = :depth_averaged
@@ -253,15 +256,19 @@ indices(::AbstractModelOutput, grid) = (:, :, :)
 function indices(output::HorizontalSlice, grid)
     (:, :, clamp(searchsortedfirst(znodes(grid, Face()), output.depth), 1:grid.Nz))
 end
+
 function indices(output::LongitudeDepthSlice, grid)
     (:, clamp(searchsortedfirst(φnodes(grid, Face()), output.latitude), 1:grid.Ny), :)
 end
+
 function indices(output::LatitudeDepthSlice, grid)
     (clamp(searchsortedfirst(λnodes(grid, Face()), output.longitude), 1:grid.Nx), :, :)
 end
+
 function indices(output::XDepthSlice, grid)
     (:, clamp(searchsortedfirst(ynodes(grid, Face()), output.y), 1:grid.Ny), :)
 end
+
 function indices(output::YDepthSlice, grid)
     (clamp(searchsortedfirst(xnodes(grid, Face()), output.x), 1:grid.Nx), :, :)
 end
@@ -274,12 +281,14 @@ $(TYPEDSIGNATURES)
 function outputs(::AbstractModelOutput, model) end
 
 outputs(::SliceOutputs, model) = merge(model.velocities, model.tracers)
+
 function outputs(::DepthAveraged, model)
     NamedTuple(
         name => Field(Average(variable; dims=3)) for
         (name, variable) in pairs(merge(model.velocities, model.tracers))
     )
 end
+
 function outputs(
     ::FreeSurfaceFields,
     model::HydrostaticFreeSurfaceModel{
@@ -288,12 +297,14 @@ function outputs(
 ) where {TS,E,A}
     (; η=model.free_surface.displacement)
 end
+
 function outputs(
     ::FreeSurfaceFields,
     model::HydrostaticFreeSurfaceModel{TS,E,A,<:SplitExplicitFreeSurface},
 ) where {TS,E,A}
     merge((; η=model.free_surface.displacement), model.free_surface.barotropic_velocities)
 end
+
 function outputs(::MOCStreamFunction, model)
     (;
         # Scale velocities by 1 / 10⁶ so doubly spatially integrated field is in
@@ -305,6 +316,7 @@ function outputs(::MOCStreamFunction, model)
         )
     )
 end
+
 function outputs(::BarotropicStreamFunction, model)
     (;
         # Scale velocities by 1 / 10⁶ so doubly spatially integrated field is in
@@ -335,7 +347,10 @@ For an output `output` a label computed using `label` function is appended on to
 function output_filename(stem::String, label::Symbol, extension::String)
     "$(stem)_$(label).$(extension)"
 end
-function output_filename(stem::String, output::AbstractModelOutput, extension::String="jld2")
+
+function output_filename(
+    stem::String, output::AbstractModelOutput, extension::String="jld2"
+)
     output_filename(stem, label(output), extension)
 end
 
@@ -408,21 +423,27 @@ function axis_limits end
 function axis_limits(::AbstractHorizontalModelOutput, grid::LatitudeLongitudeGrid)
     (extrema(λnodes(grid, Face())), extrema(φnodes(grid, Face())))
 end
+
 function axis_limits(::LongitudeDepthSlice, grid::LatitudeLongitudeGrid)
     (extrema(λnodes(grid, Face())), extrema(znodes(grid, Face())))
 end
+
 function axis_limits(::LatitudeDepthOutputs, grid::LatitudeLongitudeGrid)
     (extrema(φnodes(grid, Face())), extrema(znodes(grid, Face())))
 end
+
 function axis_limits(::AbstractHorizontalModelOutput, grid::RectilinearGrid)
     (extrema(xnodes(grid, Face())), extrema(ynodes(grid, Face())))
 end
+
 function axis_limits(::XDepthSlice, grid::RectilinearGrid)
     (extrema(xnodes(grid, Face())), extrema(znodes(grid, Face())))
 end
+
 function axis_limits(::YDepthOutputs, grid::RectilinearGrid)
     (extrema(ynodes(grid, Face())), extrema(znodes(grid, Face())))
 end
+
 function axis_limits(output::AbstractModelOutput, grid::ImmersedBoundaryGrid)
     (axis_limits(output, grid.underlying_grid))
 end
@@ -530,12 +551,14 @@ Get properties for customizing plot axis rendering for `model_output` on `grid`.
 
 $(SIGNATURES)
 """
-axis_properties(model_output, grid) = (
-    xlabel=axis_xlabel(model_output, grid),
-    ylabel=axis_ylabel(model_output, grid),
-    aspect=AxisAspect(axis_aspect_ratio(model_output, grid)),
-    limits=axis_limits(model_output, grid),
-)
+function axis_properties(model_output, grid)
+    (
+        xlabel=axis_xlabel(model_output, grid),
+        ylabel=axis_ylabel(model_output, grid),
+        aspect=AxisAspect(axis_aspect_ratio(model_output, grid)),
+        limits=axis_limits(model_output, grid),
+    )
+end
 
 """
 Get ordered sequence of field variables to plot from `field_time_series`
@@ -675,7 +698,9 @@ $(TYPEDFIELDS)
     frame_step::Int = 1
 end
 
-function plot_field_on_axis!(axis, ::AnimationPlotOutput, field_timeseries, time_index, config)
+function plot_field_on_axis!(
+    axis, ::AnimationPlotOutput, field_timeseries, time_index, config
+)
     color_range = variable_limits(config.limits, field_timeseries)
     field = @lift field_timeseries[$time_index]
     heatmap!(axis, field; colormap=config.color_map, colorrange=color_range)
@@ -686,7 +711,12 @@ function get_title(::AnimationPlotOutput, time_index, times)
 end
 
 function save_output(
-    plot_output::AnimationPlotOutput, fig, times, time_index, output_filename_stem, model_output
+    plot_output::AnimationPlotOutput,
+    fig,
+    times,
+    time_index,
+    output_filename_stem,
+    model_output,
 )
     frames = 1:plot_output.frame_step:length(times)
 
@@ -712,7 +742,7 @@ The temporal averages are plotted as filled contour plots.
 
 $(TYPEDFIELDS)
 """
-@kwdef struct TemporalAveragePlotOutput{L <: Union{Int, AbstractVector}} <: AbstractPlotOutput
+@kwdef struct TemporalAveragePlotOutput{L<:Union{Int,AbstractVector}} <: AbstractPlotOutput
     """
     Either an integer specifying number of contour levels with range automatically
     determined or a vector of specific edge values to use.
@@ -720,9 +750,11 @@ $(TYPEDFIELDS)
     levels::L = 10
 end
 
-function plot_field_on_axis!(axis, plot_output::TemporalAveragePlotOutput, field_timeseries, time_index, config)
+function plot_field_on_axis!(
+    axis, plot_output::TemporalAveragePlotOutput, field_timeseries, time_index, config
+)
     # mean(field_timeseries, dims=4) errors on Oceananigans v105.2 so manually construct mean
-    mean_field = sum(field_timeseries, dims=4) / length(field_timeseries)
+    mean_field = sum(field_timeseries; dims=4) / length(field_timeseries)
     contourf!(axis, mean_field; colormap=config.color_map, levels=plot_output.levels)
 end
 
@@ -730,7 +762,9 @@ function get_title(::TemporalAveragePlotOutput, time_index, times)
     @sprintf("Time average from\n%s to %s", prettytime(times[1]), prettytime(times[end]))
 end
 
-function save_output(::TemporalAveragePlotOutput, fig, times, time_index, output_filename_stem, model_output)
+function save_output(
+    ::TemporalAveragePlotOutput, fig, times, time_index, output_filename_stem, model_output
+)
     save(output_filename(output_filename_stem, model_output, "svg"), fig)
 end
 
@@ -768,14 +802,16 @@ function plot_output(
     axis_height::Int=480,
     title_height::Int=40,
     exclude_variables::Tuple=(),
-    plot_configuration_overrides::Union{Dict,Nothing}=nothing
+    plot_configuration_overrides::Union{Dict,Nothing}=nothing,
 )
     filepath = output_filename(output_filename_stem, model_output)
     field_timeseries = FieldDataset(filepath).fields
 
     axis_kwargs = axis_properties(model_output, grid)
 
-    variable_plot_configurations = get_variable_plot_configurations(plot_configuration_overrides)
+    variable_plot_configurations = get_variable_plot_configurations(
+        plot_configuration_overrides
+    )
 
     field_variables = ordered_field_variables(
         field_timeseries, variable_plot_configurations, exclude_variables
@@ -794,7 +830,7 @@ function plot_output(
         row, col = plot_row_column_indices(variable_index, n_columns)
         axis = Axis(fig[row, col]; title=config.label, axis_kwargs...)
         artist = plot_field_on_axis!(
-            axis, plot_output_type,  field_timeseries[variable], time_index, config
+            axis, plot_output_type, field_timeseries[variable], time_index, config
         )
         Colorbar(fig[row, col + 1], artist; label=config.unit)
     end
@@ -803,7 +839,9 @@ function plot_output(
 
     fig[1, 1:(n_columns * 2)] = Label(fig, title; fontsize=20, tellwidth=false)
 
-    save_output(plot_output_type, fig, times, time_index, output_filename_stem, model_output)
+    save_output(
+        plot_output_type, fig, times, time_index, output_filename_stem, model_output
+    )
 
     fig
 end
