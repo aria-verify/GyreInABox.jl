@@ -57,11 +57,12 @@ export SimulationConfiguration
 export HorizontalSlice, LongitudeDepthSlice, LatitudeDepthSlice, XDepthSlice, YDepthSlice
 export DepthAveraged, FreeSurfaceFields, MOCStreamFunction, BarotropicStreamFunction
 export setup_model, initialize!, setup_simulation
-export run_simulation, record_animations
+export AnimationPlotOutput, TemporalAveragePlotOutput
+export run_simulation, plot_outputs
 
+include("outputs.jl")
 include("models.jl")
 include("simulations.jl")
-include("outputs.jl")
 include("utils.jl")
 include("double_gyre.jl")
 include("spall_2011.jl")
