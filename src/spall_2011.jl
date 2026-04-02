@@ -77,7 +77,7 @@ $(TYPEDFIELDS)
     "Width of slope on top wall of domain / m"
     top_slope_width::T = 20kilometers
     "Whether to use CATKE rather than scalar vertical diffusivity turbulence closure"
-    use_catke_closure::Bool = true
+    use_catke_closure::Bool = false
     "Whether to include a dynamic Smagorinsky closure as a parameterization for eddy viscosity and diffusivity"
     use_eddy_closure::Bool = false
     "Whether to initialise with reference surface temperature or constant"
