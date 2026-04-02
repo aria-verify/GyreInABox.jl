@@ -38,6 +38,8 @@ $(TYPEDFIELDS)
     vertical_viscosity_coefficient::T = 1e-5
     "Vertical scalar diffusivity turbulence closure coefficient / m² s⁻¹"
     vertical_diffusivity_coefficient::T = 1e-5
+    "Enhanced vertical scalar diffusivity coefficient in statically unstable conditions / m² s⁻¹"
+    convective_vertical_diffusivity_coefficient::T = 1000.
     "Thermal expansion coefficient / kg m⁻³ K⁻¹"
     thermal_expansion_coefficient::T = 0.2
     "Sea water reference density / kg m⁻³"
@@ -258,9 +260,11 @@ function closure(parameters::Spall2011Parameters)
     vertical_mixing = if parameters.use_catke_closure
         CATKEVerticalDiffusivity()
     else
-        VerticalScalarDiffusivity(;
-            ν=parameters.vertical_viscosity_coefficient,
-            κ=parameters.vertical_diffusivity_coefficient,
+        ConvectiveAdjustmentVerticalDiffusivity(;
+            background_νz=parameters.vertical_viscosity_coefficient,
+            background_κz=parameters.vertical_diffusivity_coefficient,
+            convective_νz=parameters.vertical_viscosity_coefficient,
+            convective_κz=parameters.convective_vertical_diffusivity_coefficient,
         )
     end
     if parameters.use_eddy_closure
