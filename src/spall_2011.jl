@@ -79,7 +79,7 @@ $(TYPEDFIELDS)
     "Whether to use CATKE rather than scalar vertical diffusivity turbulence closure"
     use_catke_closure::Bool = false
     "Whether to include a dynamic Smagorinsky closure as a parameterization for eddy viscosity and diffusivity"
-    use_eddy_closure::Bool = false
+    use_eddy_closure::Bool = true
     "Whether to initialise with reference surface temperature or constant"
     initialize_with_reference_surface_temperature::Bool = true
     "Surface wind forcing ramp-up time scale / s"
