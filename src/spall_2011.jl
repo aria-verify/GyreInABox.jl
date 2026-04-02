@@ -38,6 +38,8 @@ $(TYPEDFIELDS)
     vertical_viscosity_coefficient::T = 1e-5
     "Vertical scalar diffusivity turbulence closure coefficient / m² s⁻¹"
     vertical_diffusivity_coefficient::T = 1e-5
+    "Enhanced vertical scalar diffusivity coefficient in statically unstable conditions / m² s⁻¹"
+    convective_vertical_diffusivity_coefficient::T = 1000.
     "Thermal expansion coefficient / kg m⁻³ K⁻¹"
     thermal_expansion_coefficient::T = 0.2
     "Sea water reference density / kg m⁻³"
@@ -75,7 +77,9 @@ $(TYPEDFIELDS)
     "Width of slope on top wall of domain / m"
     top_slope_width::T = 20kilometers
     "Whether to use CATKE rather than scalar vertical diffusivity turbulence closure"
-    use_catke_closure::Bool = true
+    use_catke_closure::Bool = false
+    "Whether to include a dynamic Smagorinsky closure as a parameterization for eddy viscosity and diffusivity"
+    use_eddy_closure::Bool = true
     "Whether to initialise with reference surface temperature or constant"
     initialize_with_reference_surface_temperature::Bool = true
     "Surface wind forcing ramp-up time scale / s"
@@ -253,13 +257,21 @@ function buoyancy(parameters::Spall2011Parameters)
 end
 
 function closure(parameters::Spall2011Parameters)
-    if parameters.use_catke_closure
+    vertical_mixing = if parameters.use_catke_closure
         CATKEVerticalDiffusivity()
     else
-        VerticalScalarDiffusivity(;
-            ν=parameters.vertical_viscosity_coefficient,
-            κ=parameters.vertical_diffusivity_coefficient,
+        ConvectiveAdjustmentVerticalDiffusivity(;
+            background_νz=parameters.vertical_viscosity_coefficient,
+            background_κz=parameters.vertical_diffusivity_coefficient,
+            convective_νz=parameters.vertical_viscosity_coefficient,
+            convective_κz=parameters.convective_vertical_diffusivity_coefficient,
         )
+    end
+    if parameters.use_eddy_closure
+        eddy_closure = DynamicSmagorinsky()
+        (eddy_closure, vertical_mixing)
+    else
+        vertical_mixing
     end
 end
 
