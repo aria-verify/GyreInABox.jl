@@ -54,7 +54,7 @@ $(TYPEDFIELDS)
     "Reference salinity level used for initialisation and southern region forcing / psu"
     reference_salinity::T = 35.0
     "Surface salinity flux in northern basin above sill / m s⁻¹"
-    northern_basin_surface_salinity_flux::T = -2e-8
+    northern_basin_surface_salinity_flux::T = 2e-8
     "Northern boundary surface temperature / °C"
     northern_surface_temperature::T = 2.0
     "Southern boundary surface temperature / °C"
