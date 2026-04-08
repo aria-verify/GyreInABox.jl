@@ -1,7 +1,7 @@
 """
 $(TYPEDEF)
 
-Parameters for simplified ocean gyre model from Spall (2011).
+Parameters for simplified ocean gyre model from Spall (2011; 2012).
     
 $(TYPEDSIGNATURES)
     
@@ -14,6 +14,9 @@ Real-valued parameters of model controlling initial and boundary conditions.
 1. Spall, M.A., 2011. On the Role of Eddies and Surface Forcing in the Heat Transport 
    and Overturning Circulation in Marginal Seas. Journal of Climate, 24, 4844--4858,
    https://doi.org/10.1175/2011JCLI4130.
+2. Spall, M. A., 2012: Influences of Precipitation on Water Mass Transformation and 
+   Deep Convection. J. Phys. Oceanogr., 42, 1684--1700,
+   https://doi.org/10.1175/JPO-D-11-0230.1. 
 
 $(TYPEDFIELDS)
 """
@@ -39,19 +42,25 @@ $(TYPEDFIELDS)
     "Vertical scalar diffusivity turbulence closure coefficient / m² s⁻¹"
     vertical_diffusivity_coefficient::T = 1e-5
     "Enhanced vertical scalar diffusivity coefficient in statically unstable conditions / m² s⁻¹"
-    convective_vertical_diffusivity_coefficient::T = 1000.
+    convective_vertical_diffusivity_coefficient::T = 1000.0
     "Thermal expansion coefficient / kg m⁻³ K⁻¹"
     thermal_expansion_coefficient::T = 0.2
+    "Haline contraction coefficient / kg m⁻³"
+    haline_contraction_coefficient::T = 0.8
     "Sea water reference density / kg m⁻³"
     sea_water_density::T = 1026.0
     "Sea water specific heat capacity / J K⁻¹ kg⁻¹"
     sea_water_heat_capacity::T = 3991.0
+    "Reference salinity level used for initialisation and southern region forcing / psu"
+    reference_salinity::T = 35.0
+    "Surface salinity flux in northern basin above sill / m s⁻¹"
+    northern_basin_surface_salinity_flux::T = 2e-8
     "Northern boundary surface temperature / °C"
     northern_surface_temperature::T = 2.0
     "Southern boundary surface temperature / °C"
     southern_surface_temperature::T = 10.0
-    "Southern region temperature relaxation time scale / s"
-    southern_region_temperature_relaxation_time::T = 20day
+    "Southern region temperature (and salinity) relaxation time scale / s"
+    southern_region_relaxation_time::T = 20day
     "Southern region extent / m"
     southern_region_extent::T = 200kilometers
     "Southern region boundary smoothing window / m"
@@ -170,6 +179,10 @@ end
     )
 end
 
+@inline surface_salinity_flux(x, y, t, p::Spall2011Parameters) = (
+    y > p.sill_center_y ? p.northern_basin_surface_salinity_flux : 0.0
+)
+
 @inline function southern_region_mask(x, y, z, p::Spall2011Parameters)
     if p.southern_boundary_window_width == 0
         y < p.southern_region_extent
@@ -203,25 +216,43 @@ end
         southern_region_mask(x, y, z, parameters) * (
             southern_region_temperature_target(x, y, z, t, parameters) -
             model_fields.T[i, j, k]
-        ) / parameters.southern_region_temperature_relaxation_time
+        ) / parameters.southern_region_relaxation_time
+    )
+end
+
+@inline function southern_region_salinity_forcing(
+    i, j, k, grid, clock, model_fields, parameters::Spall2011Parameters
+)
+    t = clock.time
+    x, y, z = node(i, j, k, grid, Center(), Center(), Center())
+    return @inbounds(
+        southern_region_mask(x, y, z, parameters) *
+        (parameters.reference_salinity - model_fields.S[i, j, k]) /
+            parameters.southern_region_relaxation_time
     )
 end
 
 function boundary_conditions(parameters::Spall2011Parameters{T}) where {T}
     u_bcs = FieldBoundaryConditions(;
-        top=FluxBoundaryCondition(zonal_surface_wind_stress; parameters=parameters)
+        top=FluxBoundaryCondition(zonal_surface_wind_stress; parameters)
     )
     v_bcs = FieldBoundaryConditions(;
-        top=FluxBoundaryCondition(meridional_surface_wind_stress; parameters=parameters)
+        top=FluxBoundaryCondition(meridional_surface_wind_stress; parameters)
+    )
+    S_bcs = FieldBoundaryConditions(;
+        top=FluxBoundaryCondition(surface_salinity_flux; parameters)
     )
     T_bcs = FieldBoundaryConditions(;
         top=FluxBoundaryCondition(surface_temperature_flux; discrete_form=true, parameters)
     )
-    return (; u=u_bcs, v=v_bcs, T=T_bcs)
+    return (; u=u_bcs, v=v_bcs, S=S_bcs, T=T_bcs)
 end
 
 function forcing(parameters::Spall2011Parameters)
-    (; T=Forcing(southern_region_temperature_forcing; discrete_form=true, parameters))
+    (;
+        S=Forcing(southern_region_salinity_forcing; discrete_form=true, parameters),
+        T=Forcing(southern_region_temperature_forcing; discrete_form=true, parameters),
+    )
 end
 
 function grid(
@@ -251,7 +282,9 @@ function buoyancy(parameters::Spall2011Parameters)
         thermal_expansion=(
             parameters.thermal_expansion_coefficient / parameters.sea_water_density
         ),
-        haline_contraction=0.0,
+        haline_contraction=(
+            parameters.haline_contraction_coefficient / parameters.sea_water_density
+        ),
     )
     SeawaterBuoyancy(; equation_of_state)
 end
@@ -290,6 +323,6 @@ function initialize!(model::Oceananigans.AbstractModel, parameters::Spall2011Par
         end
         vertically_stratified_temperature(z, surface_temperature, parameters)
     end
-    set!(model; u=0.0, v=0.0, T=T_initial, S=0.0)
+    set!(model; u=0.0, v=0.0, S=parameters.reference_salinity, T=T_initial)
     nothing
 end
