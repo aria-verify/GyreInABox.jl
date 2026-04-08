@@ -180,7 +180,7 @@ end
 end
 
 @inline surface_salinity_flux(x, y, t, p::Spall2011Parameters) = (
-    y > p.sill_center_y ? p.northern_basin_surface_salinity_flux : 0.
+    y > p.sill_center_y ? p.northern_basin_surface_salinity_flux : 0.0
 )
 
 @inline function southern_region_mask(x, y, z, p::Spall2011Parameters)
@@ -249,7 +249,10 @@ function boundary_conditions(parameters::Spall2011Parameters{T}) where {T}
 end
 
 function forcing(parameters::Spall2011Parameters)
-    (; T=Forcing(southern_region_temperature_forcing; discrete_form=true, parameters))
+    (;
+        S=Forcing(southern_region_salinity_forcing; discrete_form=true, parameters),
+        T=Forcing(southern_region_temperature_forcing; discrete_form=true, parameters),
+    )
 end
 
 function grid(
@@ -320,6 +323,6 @@ function initialize!(model::Oceananigans.AbstractModel, parameters::Spall2011Par
         end
         vertically_stratified_temperature(z, surface_temperature, parameters)
     end
-    set!(model; u=0.0, v=0.0, T=T_initial, S=parameters.reference_salinity)
+    set!(model; u=0.0, v=0.0, S=parameters.reference_salinity, T=T_initial)
     nothing
 end
