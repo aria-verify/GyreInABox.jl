@@ -57,6 +57,8 @@ $(TYPEDFIELDS)
     northern_basin_surface_salinity_flux::T = 2e-8
     "Northern boundary surface temperature / °C"
     northern_surface_temperature::T = 2.0
+    "Distance north along western boundary that surface temperature reaches limit / m"
+    north_western_temperature_limit_distance::T = 840kilometer
     "Southern boundary surface temperature / °C"
     southern_surface_temperature::T = 10.0
     "Southern region temperature (and salinity) relaxation time scale / s"
@@ -163,8 +165,15 @@ function two_basin_bathymetry(x, y, parameters::Spall2011Parameters)
 end
 
 @inline function reference_surface_temperature(x, y, p::Spall2011Parameters)
+    nw_offset = p.north_western_temperature_limit_distance
+    delta = p.domain_size_y - nw_offset
+    northern_temperature_y = if delta > 0
+        nw_offset + delta * (x / p.domain_size_x)^(2 * (1 - max(0, y - nw_offset) / delta))
+    else
+        p.domain_size_y
+    end
     p.southern_surface_temperature +
-    (max(y - p.southern_region_extent, 0) / (p.domain_size_y - p.southern_region_extent)) *
+    min((max(y - p.southern_region_extent, 0) / (northern_temperature_y - p.southern_region_extent)), 1) *
     (p.northern_surface_temperature - p.southern_surface_temperature)
 end
 
