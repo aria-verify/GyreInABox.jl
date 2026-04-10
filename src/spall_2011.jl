@@ -51,10 +51,10 @@ $(TYPEDFIELDS)
     sea_water_density::T = 1026.0
     "Sea water specific heat capacity / J K⁻¹ kg⁻¹"
     sea_water_heat_capacity::T = 3991.0
-    "Reference salinity level used for initialisation and southern region forcing / psu"
+    "Reference salinity level used for initialisation and southern region forcing"
     reference_salinity::T = 35.0
-    "Surface salinity flux in northern basin above sill / m s⁻¹"
-    northern_basin_surface_salinity_flux::T = 2e-8
+    "Surface net evaporation-precipitation (salinity flux coefficient) in northern basin above sill / m s⁻¹"
+    northern_basin_surface_evaporation::T = -2e-8
     "Northern boundary surface temperature / °C"
     northern_surface_temperature::T = 2.0
     "Distance north along western boundary that surface temperature reaches limit / m"
@@ -188,9 +188,16 @@ end
     )
 end
 
-@inline surface_salinity_flux(x, y, t, p::Spall2011Parameters) = (
-    y > p.sill_center_y ? p.northern_basin_surface_salinity_flux : 0.0
+@inline surface_evaporation_minus_precipitation(y, p::Spall2011Parameters) = (
+    y > p.sill_center_y ? p.northern_basin_surface_evaporation : 0.0
 )
+
+@inline function surface_salinity_flux(
+    i, j, grid, clock, model_fields, p::Spall2011Parameters
+)
+    y = ynode(i, j, 1, grid, Center(), Center(), Center())
+    @inbounds -model_fields.S[i, j, grid.Nz] * surface_evaporation_minus_precipitation(y, p)
+end
 
 @inline function southern_region_mask(x, y, z, p::Spall2011Parameters)
     if p.southern_boundary_window_width == 0
@@ -249,7 +256,7 @@ function boundary_conditions(parameters::Spall2011Parameters{T}) where {T}
         top=FluxBoundaryCondition(meridional_surface_wind_stress; parameters)
     )
     S_bcs = FieldBoundaryConditions(;
-        top=FluxBoundaryCondition(surface_salinity_flux; parameters)
+        top=FluxBoundaryCondition(surface_salinity_flux; discrete_form=true, parameters)
     )
     T_bcs = FieldBoundaryConditions(;
         top=FluxBoundaryCondition(surface_temperature_flux; discrete_form=true, parameters)
