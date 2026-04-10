@@ -173,8 +173,13 @@ end
         p.domain_size_y
     end
     p.southern_surface_temperature +
-    min((max(y - p.southern_region_extent, 0) / (northern_temperature_y - p.southern_region_extent)), 1) *
-    (p.northern_surface_temperature - p.southern_surface_temperature)
+    min(
+        (
+            max(y - p.southern_region_extent, 0) /
+            (northern_temperature_y - p.southern_region_extent)
+        ),
+        1,
+    ) * (p.northern_surface_temperature - p.southern_surface_temperature)
 end
 
 @inline function surface_temperature_flux(
