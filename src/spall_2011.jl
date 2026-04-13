@@ -330,7 +330,7 @@ function closure(parameters::Spall2011Parameters)
 end
 
 function coriolis(parameters::Spall2011Parameters)
-    BetaPlane(parameters.coriolis_offset, parameters.coriolis_coefficient)
+    BetaPlane(; f₀=parameters.coriolis_offset, β=parameters.coriolis_coefficient)
 end
 tracers(parameters::Spall2011Parameters) = (:T, :S)
 momentum_advection(parameters::Spall2011Parameters) = Oceananigans.WENOVectorInvariant()
