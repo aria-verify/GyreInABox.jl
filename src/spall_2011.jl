@@ -95,6 +95,8 @@ $(TYPEDFIELDS)
     initialize_with_reference_surface_temperature::Bool = true
     "Surface wind forcing ramp-up time scale / s"
     surface_wind_forcing_ramp_up_timescale::T = 10day
+    "Order of WENO advection schemes for momentum and tracers"
+    advection_order::Int = 5
 end
 
 function zonal_surface_wind_stress(x, y, t, parameters::Spall2011Parameters)
@@ -333,7 +335,8 @@ function coriolis(parameters::Spall2011Parameters)
     BetaPlane(parameters.coriolis_offset, parameters.coriolis_coefficient)
 end
 tracers(parameters::Spall2011Parameters) = (:T, :S)
-momentum_advection(parameters::Spall2011Parameters) = Oceananigans.WENOVectorInvariant()
+momentum_advection(parameters::Spall2011Parameters) = Oceananigans.WENOVectorInvariant(order=parameters.advection_order)
+tracer_advection(parameters::Spall2011Parameters) = Oceananigans.WENO(order=parameters.advection_order)
 
 function initialize!(model::Oceananigans.AbstractModel, parameters::Spall2011Parameters)
     function T_initial(x, y, z)

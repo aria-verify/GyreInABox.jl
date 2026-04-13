@@ -68,6 +68,13 @@ Construct momentum advection scheme for ocean gyre model with parameters `parame
 function momentum_advection end
 
 """
+    $(FUNCTIONNAME)(parameters)
+
+Construct tracer advection scheme for ocean gyre model with parameters `parameters`.
+"""
+function tracer_advection end
+
+"""
 Set up ocean gyre model with parameters `parameters` on grid with architecture `architecture`.
 
 $(SIGNATURES)
@@ -76,6 +83,7 @@ function setup_model(parameters::AbstractParameters; architecture=CPU())
     HydrostaticFreeSurfaceModel(
         grid(parameters, architecture);
         momentum_advection=momentum_advection(parameters),
+        tracer_advection=tracer_advection(parameters),
         coriolis=coriolis(parameters),
         closure=closure(parameters),
         buoyancy=buoyancy(parameters),
