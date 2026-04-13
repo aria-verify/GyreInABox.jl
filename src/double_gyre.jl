@@ -277,6 +277,8 @@ forcing(::DoubleGyreParameters) = NamedTuple()
 
 momentum_advection(::DoubleGyreParameters) = Oceananigans.WENOVectorInvariant()
 
+tracer_advection(::DoubleGyreParameters) = Oceananigans.WENO()
+
 coriolis(::DoubleGyreParameters) = HydrostaticSphericalCoriolis()
 
 closure(::DoubleGyreParameters) = CATKEVerticalDiffusivity()
