@@ -56,8 +56,9 @@ export DoubleGyreParameters, Spall2011Parameters
 export SimulationConfiguration
 export HorizontalSlice, LongitudeDepthSlice, LatitudeDepthSlice, XDepthSlice, YDepthSlice
 export DepthAveraged, FreeSurfaceFields, MOCStreamFunction, BarotropicStreamFunction
+export MOCStrength, MeridionalHeatTransport, HorizontallyAveragedTracers, AverageKineticEnergy
 export setup_model, initialize!, setup_simulation
-export AnimationPlotOutput, TemporalAveragePlotOutput
+export AnimationPlotOutput, TemporalAveragePlotOutput, TimeSeriesPlotOutput
 export run_simulation, plot_outputs
 
 include("outputs.jl")

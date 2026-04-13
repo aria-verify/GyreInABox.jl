@@ -4,6 +4,8 @@ abstract type AbstractHorizontalModelOutput{S} <: AbstractModelOutput{S} end
 
 abstract type AbstractVerticalModelOutput{S} <: AbstractModelOutput{S} end
 
+abstract type AbstractScalarModelOutput{S} <: AbstractModelOutput{S} end
+
 """
 $(TYPEDEF)
 
@@ -129,7 +131,7 @@ end
 """
 $(TYPEDEF)
 
-Depth and time averaged output.
+Depth averaged output.
     
 $(TYPEDSIGNATURES)
     
@@ -222,6 +224,42 @@ end
 LatitudeDepthOutputs = Union{LatitudeDepthSlice,MOCStreamFunction}
 YDepthOutputs = Union{YDepthSlice,MOCStreamFunction}
 
+@kwdef struct MOCStrength{S,T} <: AbstractScalarModelOutput{S}
+    "y / m or latitude / ° coordinate to record output at"
+    y_or_latitude::T
+    "Schedule to record output at"
+    schedule::S = AveragedTimeInterval(5day, window=5day)
+end
+
+@kwdef struct MeridionalHeatTransport{S,T} <: AbstractScalarModelOutput{S}
+    "y / m or latitude / ° coordinate to record output at"
+    y_or_latitude::T
+    "Schedule to record output at"
+    schedule::S = AveragedTimeInterval(5day, window=5day)
+    "Sea water reference density / kg m⁻³"
+    sea_water_density::T = 1026.0
+    "Sea water specific heat capacity / J K⁻¹ kg⁻¹"
+    sea_water_heat_capacity::T = 3991.0
+end
+
+@kwdef struct AverageKineticEnergy{S,M} <: AbstractScalarModelOutput{S}
+    "Schedule to record output at"
+    schedule::S = AveragedTimeInterval(5day, window=5day)
+    "Mask defining region to average over or nothing if whole region should be used"
+    region_mask::M = nothing
+end
+
+@kwdef struct HorizontallyAveragedTracers{S,M} <: AbstractModelOutput{S}
+    "Schedule to record output at"
+    schedule::S = AveragedTimeInterval(5day, window=5day)
+    "Mask defining region to average over or nothing if whole region should be used"
+    region_mask::M = nothing
+end
+
+ZeroOrOneDimensionalTimeSeriesOutputs = Union{
+    HorizontallyAveragedTracers,AbstractScalarModelOutput
+}
+
 """
 Symbol label for output type to use in naming output file and registering output writer.
 
@@ -245,32 +283,56 @@ label(::DepthAveraged) = :depth_averaged
 label(::FreeSurfaceFields) = :free_surface_fields
 label(::MOCStreamFunction) = :moc_stream_function
 label(::BarotropicStreamFunction) = :barotropic_stream_function
+label(output::MOCStrength) = Symbol("moc_strength_at_y_$(output.y_or_latitude)m_or_deg")
+function label(output::MeridionalHeatTransport)
+    Symbol("meridional_heat_transport_at_y_$(output.y_or_latitude)m_or_deg")
+end
+
+function label(base_label::Symbol, region_mask)
+    isnothing(region_mask) ? base_label : Symbol("$(base_label)_$(summary(region_mask))")
+end
+label(output::AverageKineticEnergy) = label(:average_kinetic_energy, output.region_mask)
+function label(output::HorizontallyAveragedTracers)
+    label(:horizontally_averaged_tracers, output.region_mask)
+end
 
 """
 Spatial grid indices output type records fields at.
 
 $(TYPEDSIGNATURES)
 """
-indices(::AbstractModelOutput, grid) = (:, :, :)
+indices(::AbstractModelOutput, grid::AbstractGrid) = (:, :, :)
 
-function indices(output::HorizontalSlice, grid)
+indices(output::AbstractModelOutput, grid::ImmersedBoundaryGrid) = indices(output, grid.underlying_grid)
+
+function indices(output::HorizontalSlice, grid::AbstractUnderlyingGrid)
     (:, :, clamp(searchsortedfirst(znodes(grid, Face()), output.depth), 1:grid.Nz))
 end
 
-function indices(output::LongitudeDepthSlice, grid)
+function indices(output::LongitudeDepthSlice, grid::LatitudeLongitudeGrid)
     (:, clamp(searchsortedfirst(φnodes(grid, Face()), output.latitude), 1:grid.Ny), :)
 end
 
-function indices(output::LatitudeDepthSlice, grid)
+function indices(output::LatitudeDepthSlice, grid::LatitudeLongitudeGrid)
     (clamp(searchsortedfirst(λnodes(grid, Face()), output.longitude), 1:grid.Nx), :, :)
 end
 
-function indices(output::XDepthSlice, grid)
+function indices(output::XDepthSlice, grid::RectilinearGrid)
     (:, clamp(searchsortedfirst(ynodes(grid, Face()), output.y), 1:grid.Ny), :)
 end
 
-function indices(output::YDepthSlice, grid)
+function indices(output::YDepthSlice, grid::RectilinearGrid)
     (clamp(searchsortedfirst(xnodes(grid, Face()), output.x), 1:grid.Nx), :, :)
+end
+
+function indices(
+    output::Union{MOCStrength,MeridionalHeatTransport}, grid::LatitudeLongitudeGrid
+)
+    (:, clamp(searchsortedfirst(φnodes(grid, Face()), output.y_or_latitude), 1:grid.Ny), :)
+end
+
+function indices(output::Union{MOCStrength,MeridionalHeatTransport}, grid::RectilinearGrid)
+    (:, clamp(searchsortedfirst(ynodes(grid, Face()), output.y_or_latitude), 1:grid.Ny), :)
 end
 
 """
@@ -327,6 +389,61 @@ function outputs(::BarotropicStreamFunction, model)
     )
 end
 
+function outputs(::MOCStrength, model)
+    (;
+        # Scale velocities by 1 / 10⁶ so doubly spatially integrated field is in
+        # units 10⁶ m³ s⁻¹ = Sv (Sverdrup)
+        W=Field(
+            Reduction(
+                maximum!,
+                Field(
+                    CumulativeIntegral(
+                        Field(Integral(model.velocities.v * 1e-6; dims=1));
+                        dims=3,
+                        reverse=true,
+                    ),
+                );
+                dims=3,
+            ),
+        )
+    )
+end
+
+function outputs(output::MeridionalHeatTransport, model)
+    (;
+        Q=Field(
+            Integral(
+                # Scale so integrated field is in units TW
+                1e-12 *
+                output.sea_water_density *
+                output.sea_water_heat_capacity *
+                model.velocities.v *
+                model.tracers.T;
+                dims=(1, 3),
+            ),
+        )
+    )
+end
+
+function outputs(output::AverageKineticEnergy, model)
+    (;
+        eₖ=Field(
+            Average(
+                sum(v^2 / 2 for v in model.velocities);
+                dims=(1, 2, 3),
+                condition=output.region_mask,
+            ),
+        )
+    )
+end
+
+function outputs(output::HorizontallyAveragedTracers, model)
+    NamedTuple(
+        name => Field(Average(tracer; dims=(1, 2), condition=output.region_mask)) for
+        (name, tracer) in pairs(model.tracers)
+    )
+end
+
 """
 Time schedule to record output type at.
 
@@ -375,6 +492,10 @@ function axis_xlabel(output::AbstractModelOutput, grid::ImmersedBoundaryGrid)
     (axis_xlabel(output, grid.underlying_grid))
 end
 
+function axis_xlabel(::ZeroOrOneDimensionalTimeSeriesOutputs, ::AbstractUnderlyingGrid)
+    "Time / days"
+end
+
 """
     $(FUNCTIONNAME)(output, grid)
 
@@ -386,26 +507,32 @@ function axis_ylabel end
 
 axis_ylabel(::AbstractHorizontalModelOutput, ::LatitudeLongitudeGrid) = "Latitude ϕ / ᵒ"
 axis_ylabel(::AbstractHorizontalModelOutput, ::RectilinearGrid) = "y / m"
-function axis_ylabel(
-    ::AbstractVerticalModelOutput, ::Union{LatitudeLongitudeGrid,RectilinearGrid}
-)
+function axis_ylabel(::AbstractVerticalModelOutput, ::AbstractUnderlyingGrid)
     "Depth z / m"
 end
 function axis_ylabel(output::AbstractModelOutput, grid::ImmersedBoundaryGrid)
     axis_ylabel(output, grid.underlying_grid)
 end
 
+axis_ylabel(::HorizontallyAveragedTracers, ::AbstractUnderlyingGrid) = "Depth z / m"
+
+axis_ylabel(::AbstractScalarModelOutput, ::AbstractUnderlyingGrid) = ""
+
 """
 Aspect ratio for field heatmaps.
     
 $(TYPEDSIGNATURES)
 """
-axis_aspect_ratio(::AbstractModelOutput, ::AbstractGrid) = 1
+axis_aspect_ratio(::AbstractModelOutput, ::AbstractGrid) = nothing
 function axis_aspect_ratio(::AbstractHorizontalModelOutput, grid::LatitudeLongitudeGrid)
-    abs(-(extrema(λnodes(grid, Face()))...)) / abs(-(extrema(φnodes(grid, Face()))...))
+    AxisAspect(
+        abs(-(extrema(λnodes(grid, Face()))...)) / abs(-(extrema(φnodes(grid, Face()))...))
+    )
 end
 function axis_aspect_ratio(::AbstractHorizontalModelOutput, grid::RectilinearGrid)
-    abs(-(extrema(xnodes(grid, Face()))...)) / abs(-(extrema(ynodes(grid, Face()))...))
+    AxisAspect(
+        abs(-(extrema(xnodes(grid, Face()))...)) / abs(-(extrema(ynodes(grid, Face()))...))
+    )
 end
 function axis_aspect_ratio(output::AbstractModelOutput, grid::ImmersedBoundaryGrid)
     (axis_aspect_ratio(output, grid.underlying_grid))
@@ -420,32 +547,68 @@ $(TYPEDSIGNATURES)
 """
 function axis_limits end
 
-function axis_limits(::AbstractHorizontalModelOutput, grid::LatitudeLongitudeGrid)
-    (extrema(λnodes(grid, Face())), extrema(φnodes(grid, Face())))
+function axis_xlimits(
+    ::AbstractHorizontalModelOutput, grid::LatitudeLongitudeGrid, ::AbstractVector
+)
+    extrema(λnodes(grid, Face()))
+end
+function axis_xlimits(
+    ::AbstractHorizontalModelOutput, grid::RectilinearGrid, ::AbstractVector
+)
+    extrema(znodes(grid, Face()))
+end
+function axis_xlimits(::LongitudeDepthSlice, grid::LatitudeLongitudeGrid, ::AbstractVector)
+    extrema(λnodes(grid, Face()))
+end
+function axis_xlimits(::LatitudeDepthOutputs, grid::LatitudeLongitudeGrid, ::AbstractVector)
+    extrema(φnodes(grid, Face()))
+end
+function axis_xlimits(::XDepthSlice, grid::RectilinearGrid, ::AbstractVector)
+    extrema(xnodes(grid, Face()))
+end
+function axis_xlimits(::YDepthSlice, grid::RectilinearGrid, ::AbstractVector)
+    extrema(ynodes(grid, Face()))
 end
 
-function axis_limits(::LongitudeDepthSlice, grid::LatitudeLongitudeGrid)
-    (extrema(λnodes(grid, Face())), extrema(znodes(grid, Face())))
+function axis_xlimits(
+    ::ZeroOrOneDimensionalTimeSeriesOutputs, ::AbstractUnderlyingGrid, times::AbstractVector
+)
+    extrema(times / 1day)
 end
 
-function axis_limits(::LatitudeDepthOutputs, grid::LatitudeLongitudeGrid)
-    (extrema(φnodes(grid, Face())), extrema(znodes(grid, Face())))
+function axis_ylimits(
+    ::AbstractHorizontalModelOutput, grid::LatitudeLongitudeGrid, ::AbstractVector
+)
+    extrema(φnodes(grid, Face()))
+end
+function axis_ylimits(
+    ::AbstractHorizontalModelOutput, grid::RectilinearGrid, ::AbstractVector
+)
+    extrema(ynodes(grid, Face()))
+end
+function axis_ylimits(
+    ::AbstractVerticalModelOutput, grid::AbstractUnderlyingGrid, ::AbstractVector
+)
+    extrema(znodes(grid, Face()))
+end
+function axis_ylimits(
+    ::HorizontallyAveragedTracers, grid::AbstractUnderlyingGrid, ::AbstractVector
+)
+    extrema(znodes(grid, Face()))
+end
+function axis_ylimits(::AbstractScalarModelOutput, grid::AbstractUnderlyingGrid, ::AbstractVector)
+    nothing
+end
+function axis_limits(
+    output::AbstractModelOutput, grid::ImmersedBoundaryGrid, times::AbstractVector
+)
+    axis_limits(output, grid.underlying_grid, times)
 end
 
-function axis_limits(::AbstractHorizontalModelOutput, grid::RectilinearGrid)
-    (extrema(xnodes(grid, Face())), extrema(ynodes(grid, Face())))
-end
-
-function axis_limits(::XDepthSlice, grid::RectilinearGrid)
-    (extrema(xnodes(grid, Face())), extrema(znodes(grid, Face())))
-end
-
-function axis_limits(::YDepthOutputs, grid::RectilinearGrid)
-    (extrema(ynodes(grid, Face())), extrema(znodes(grid, Face())))
-end
-
-function axis_limits(output::AbstractModelOutput, grid::ImmersedBoundaryGrid)
-    (axis_limits(output, grid.underlying_grid))
+function axis_limits(
+    output::AbstractModelOutput, grid::AbstractUnderlyingGrid, times::AbstractVector
+)
+    (axis_xlimits(output, grid, times), axis_ylimits(output, grid, times))
 end
 
 @kwdef struct AutoVariableLimits{T}
@@ -505,6 +668,18 @@ const DEFAULT_VARIABLE_PLOT_CONFIGURATIONS = Dict{String,VariablePlotConfigurati
     "Ψᴮ" => VariablePlotConfiguration(
         "Barotropic stream function Ψᴮ", "Sv", :balance, GyreInABox.AutoVariableLimits()
     ),
+    "W" => VariablePlotConfiguration(
+        "MOC strength", "Sv", :balance, GyreInABox.AutoVariableLimits()
+    ),
+    "Q" => VariablePlotConfiguration(
+        "Meridional heat transport", "PW", :balance, GyreInABox.AutoVariableLimits()
+    ),
+    "eₖ" => VariablePlotConfiguration(
+        "Average kinetic energy",
+        "m² s⁻²",
+        :balance,
+        GyreInABox.AutoVariableLimits(; symmetrize=false),
+    ),
 )
 
 """
@@ -547,16 +722,16 @@ function add_output_writers!(
 end
 
 """
-Get properties for customizing plot axis rendering for `model_output` on `grid`.
+Get properties for customizing plot axis rendering for `model_output` on `grid` and `times`.
 
 $(SIGNATURES)
 """
-function axis_properties(model_output, grid)
+function axis_properties(model_output, grid, times)
     (
         xlabel=axis_xlabel(model_output, grid),
         ylabel=axis_ylabel(model_output, grid),
-        aspect=AxisAspect(axis_aspect_ratio(model_output, grid)),
-        limits=axis_limits(model_output, grid),
+        aspect=axis_aspect_ratio(model_output, grid),
+        limits=axis_limits(model_output, grid, times),
     )
 end
 
@@ -611,12 +786,13 @@ end
 
 """
 Compute figure row and column indices for axis for field variable indexed by
-`variable_index` for plot grid with `n_columns` columns.
+`variable_index` for plot grid with `n_columns` columns starting at row
+`row_offset`.
 
 $(SIGNATURES)
 """
-function plot_row_column_indices(variable_index, n_columns)
-    row = (variable_index - 1) ÷ n_columns + 2
+function plot_row_column_indices(variable_index, n_columns, row_offset)
+    row = (variable_index - 1) ÷ n_columns + row_offset
     col = ((variable_index - 1) % n_columns) * 2 + 1
     return (row, col)
 end
@@ -687,7 +863,7 @@ Animated field plot output type.
 
 ## Details
 
-Specifies recording an animation of model output fields recording during a simulation.
+Specifies recording an animation of model output fields recorded during a simulation.
 
 $(TYPEDFIELDS)
 """
@@ -736,7 +912,7 @@ Field temporal average plot output type.
 
 ## Details
 
-Specifies plotting temporal average of model output fields recording during a simulation.
+Specifies plotting temporal average of model output fields recorded during a simulation.
 
 The temporal averages are plotted as filled contour plots.
 
@@ -767,6 +943,62 @@ function save_output(
 )
     save(output_filename(output_filename_stem, model_output, "svg"), fig)
 end
+
+"""
+$(TYPEDEF)
+
+Time series plot output type.
+
+## Details
+
+Specifies plotting time series of zero or one dimensional model output fields recorded during a simulation.
+
+$(TYPEDFIELDS)
+"""
+@kwdef struct TimeSeriesPlotOutput{L<:Union{Int,AbstractVector}} <: AbstractPlotOutput
+    """
+    Either an integer specifying number of contour levels with range automatically
+    determined or a vector of specific edge values to use (for 1D output fields).
+    """
+    levels::L = 10
+end
+
+function plot_field_on_axis!(
+    axis, plot_output::TimeSeriesPlotOutput, field_timeseries, time_index, config
+)
+    times = field_timeseries.times
+    dim_x, dim_y, dim_z, dim_t = size(field_timeseries.data)
+    if dim_x == dim_y == dim_z == 1
+        lines!(axis, times / 1day, field_timeseries[1, 1, 1, :])
+        nothing
+    else
+        free_dimension_values, indices = if dim_x > 1 && dim_y == dim_z == 1
+            xnodes(field_timeseries), (:, 1, 1, :)
+        elseif dim_y > 1 && dim_x == dim_z == 1
+            ynodes(field_timeseries), (1, :, 1, :)
+        else
+            znodes(field_timeseries), (1, 1, :, :)
+        end
+        contourf!(
+            axis,
+            times / 1day,
+            free_dimension_values,
+            field_timeseries[indices...]';
+            colormap=config.color_map,
+            levels=plot_output.levels,
+        )
+    end
+end
+
+get_title(::TimeSeriesPlotOutput, time_index, times) = nothing
+
+function save_output(
+    ::TimeSeriesPlotOutput, fig, times, time_index, output_filename_stem, model_output
+)
+    save(output_filename(output_filename_stem, model_output, "svg"), fig)
+end
+
+use_colorbar(::TimeSeriesPlotOutput) = true
 
 """
 Create plot of fields recorded as model output.
@@ -807,7 +1039,9 @@ function plot_output(
     filepath = output_filename(output_filename_stem, model_output)
     field_timeseries = FieldDataset(filepath).fields
 
-    axis_kwargs = axis_properties(model_output, grid)
+    times = first(values(field_timeseries)).times
+
+    axis_kwargs = axis_properties(model_output, grid, times)
 
     variable_plot_configurations = get_variable_plot_configurations(
         plot_configuration_overrides
@@ -821,23 +1055,27 @@ function plot_output(
 
     fig = setup_figure(n_rows, n_columns, axis_width, axis_height, title_height)
 
-    times = first(values(field_timeseries)).times
-
     time_index = Observable(1)
-
-    for (variable_index, variable) in enumerate(field_variables)
-        config = variable_plot_configurations[variable]
-        row, col = plot_row_column_indices(variable_index, n_columns)
-        axis = Axis(fig[row, col]; title=config.label, axis_kwargs...)
-        artist = plot_field_on_axis!(
-            axis, plot_output_type, field_timeseries[variable], time_index, config
-        )
-        Colorbar(fig[row, col + 1], artist; label=config.unit)
-    end
 
     title = get_title(plot_output_type, time_index, times)
 
-    fig[1, 1:(n_columns * 2)] = Label(fig, title; fontsize=20, tellwidth=false)
+    row_offset = isnothing(title) ? 1 : 2
+
+    for (variable_index, variable) in enumerate(field_variables)
+        config = variable_plot_configurations[variable]
+        row, col = plot_row_column_indices(variable_index, n_columns, row_offset)
+        axis = Axis(fig[row, col]; title="$(config.label) / $(config.unit)", axis_kwargs...)
+        artist = plot_field_on_axis!(
+            axis, plot_output_type, field_timeseries[variable], time_index, config
+        )
+        !isnothing(artist) && Colorbar(fig[row, col + 1], artist)
+    end
+
+    if !isnothing(title)
+        fig[1, 1:end] = Label(fig, title; fontsize=20, tellwidth=false)
+    end
+
+    resize_to_layout!(fig)
 
     save_output(
         plot_output_type, fig, times, time_index, output_filename_stem, model_output
