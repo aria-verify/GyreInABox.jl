@@ -413,8 +413,8 @@ function outputs(output::MeridionalHeatTransport, model)
     (;
         Q=Field(
             Integral(
-                # Scale so integrated field is in units TW
-                1e-12 *
+                # Scale so integrated field is in units PW
+                1e-15 *
                 output.sea_water_density *
                 output.sea_water_heat_capacity *
                 model.velocities.v *
