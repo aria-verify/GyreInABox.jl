@@ -966,22 +966,27 @@ end
 function plot_field_on_axis!(
     axis, plot_output::TimeSeriesPlotOutput, field_timeseries, time_index, config
 )
-    times = field_timeseries.times
-    dim_x, dim_y, dim_z, dim_t = size(field_timeseries.data)
+    times = field_timeseries.times / 1day
+    dims = dim_x, dim_y, dim_z, dim_t = size(field_timeseries)
+    indices = field_timeseries.indices
+    indices = Tuple(
+        s == 1 && indices[i] != Colon() ? first(indices[i]) : (s > 1 ? Colon() : 1)
+        for (i, s) in enumerate(dims)
+    )
     if dim_x == dim_y == dim_z == 1
-        lines!(axis, times / 1day, field_timeseries[1, 1, 1, :])
+        lines!(axis, times / 1day, field_timeseries[indices...])
         nothing
     else
-        free_dimension_values, indices = if dim_x > 1 && dim_y == dim_z == 1
-            xnodes(field_timeseries), (:, 1, 1, :)
+        free_dimension_values= if dim_x > 1 && dim_y == dim_z == 1
+            xnodes(field_timeseries)
         elseif dim_y > 1 && dim_x == dim_z == 1
-            ynodes(field_timeseries), (1, :, 1, :)
+            ynodes(field_timeseries)
         else
-            znodes(field_timeseries), (1, 1, :, :)
+            znodes(field_timeseries)
         end
         contourf!(
             axis,
-            times / 1day,
+            times,
             free_dimension_values,
             field_timeseries[indices...]';
             colormap=config.color_map,
