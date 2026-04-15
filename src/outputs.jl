@@ -413,8 +413,8 @@ function outputs(output::MeridionalHeatTransport, model)
     (;
         Q=Field(
             Integral(
-                # Scale so integrated field is in units PW
-                1e-15 *
+                # Scale so integrated field is in units TW
+                1e-12 *
                 output.sea_water_density *
                 output.sea_water_heat_capacity *
                 model.velocities.v *
@@ -672,7 +672,7 @@ const DEFAULT_VARIABLE_PLOT_CONFIGURATIONS = Dict{String,VariablePlotConfigurati
         "MOC strength", "Sv", :balance, GyreInABox.AutoVariableLimits()
     ),
     "Q" => VariablePlotConfiguration(
-        "Meridional heat transport", "PW", :balance, GyreInABox.AutoVariableLimits()
+        "Meridional heat transport", "TW", :balance, GyreInABox.AutoVariableLimits()
     ),
     "eₖ" => VariablePlotConfiguration(
         "Average kinetic energy",
