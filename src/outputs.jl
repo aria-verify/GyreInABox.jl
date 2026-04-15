@@ -555,7 +555,7 @@ end
 function axis_xlimits(
     ::AbstractHorizontalModelOutput, grid::RectilinearGrid, ::AbstractVector
 )
-    extrema(znodes(grid, Face()))
+    extrema(xnodes(grid, Face()))
 end
 function axis_xlimits(::LongitudeDepthSlice, grid::LatitudeLongitudeGrid, ::AbstractVector)
     extrema(λnodes(grid, Face()))
