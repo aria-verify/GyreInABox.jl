@@ -51,6 +51,7 @@ using Oceananigans.Units
 using SeawaterPolynomials: TEOS10EquationOfState
 using CairoMakie
 using Printf
+using JLD2
 
 export DoubleGyreParameters, Spall2011Parameters
 export SimulationConfiguration

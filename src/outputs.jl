@@ -736,22 +736,15 @@ function axis_properties(model_output, grid, times)
 end
 
 """
-Get ordered sequence of field variables to plot from `field_time_series`
+Get ordered sequence of field variables to plot from `field_variables`
 based on those for which plot configurations are defined in
-`variable_plot_configurations` and not excluded in `exclude_variables`.
+`variable_plot_configurations`.
 
 $(SIGNATURES)
 """
-function ordered_field_variables(
-    field_timeseries, variable_plot_configurations, exclude_variables
-)
+function ordered_field_variables(field_variables, variable_plot_configurations)
     sort(
-        tuple(
-            setdiff(
-                keys(field_timeseries) ∩ keys(variable_plot_configurations),
-                exclude_variables,
-            )...,
-        );
+        field_variables ∩ keys(variable_plot_configurations);
         # Sort by tuple of variable name length and variable so that decorated variable
         # names appear after undecorated variables
         by=variable -> (length(variable), variable),
@@ -967,17 +960,17 @@ function plot_field_on_axis!(
     axis, plot_output::TimeSeriesPlotOutput, field_timeseries, time_index, config
 )
     times = field_timeseries.times / 1day
-    dims = dim_x, dim_y, dim_z, dim_t = size(field_timeseries)
+    spatial_dims..., _ = dim_x, dim_y, dim_z, dim_t = size(field_timeseries)
     indices = field_timeseries.indices
     indices = Tuple(
         s == 1 && indices[i] != Colon() ? first(indices[i]) : (s > 1 ? Colon() : 1)
-        for (i, s) in enumerate(dims)
+        for (i, s) in enumerate(spatial_dims)
     )
     if dim_x == dim_y == dim_z == 1
-        lines!(axis, times, field_timeseries[indices...])
+        lines!(axis, times, [field_timeseries[i][indices...] for i in 1:length(times)])
         nothing
     else
-        free_dimension_values= if dim_x > 1 && dim_y == dim_z == 1
+        free_dimension_values = if dim_x > 1 && dim_y == dim_z == 1
             xnodes(field_timeseries)
         elseif dim_y > 1 && dim_x == dim_z == 1
             ynodes(field_timeseries)
@@ -988,7 +981,7 @@ function plot_field_on_axis!(
             axis,
             times,
             free_dimension_values,
-            field_timeseries[indices...]';
+            hcat((interior(field_timeseries[i])[indices...] for i in 1:length(times))...)';
             colormap=config.color_map,
             levels=plot_output.levels,
         )
@@ -1002,8 +995,6 @@ function save_output(
 )
     save(output_filename(output_filename_stem, model_output, "svg"), fig)
 end
-
-use_colorbar(::TimeSeriesPlotOutput) = true
 
 """
 Create plot of fields recorded as model output.
@@ -1028,6 +1019,11 @@ By default the plot configurations for each field variable are taken from the
 by passing a dictionary `plot_configuration_overrides` with keys corresponding to the
 variable names to override. Specific variables to exclude from plot can be specified
 in a tuple of variable names `exclude_variables`.
+
+The backend used for loading data from file can be set using `backend` (defaults to
+loading all data in memory). A subset of times at which output was recorded at
+which should be used to produce plot can be specified using `times` - the default
+is to use all recorded times.
 """
 function plot_output(
     plot_output_type::AbstractPlotOutput,
@@ -1040,11 +1036,21 @@ function plot_output(
     title_height::Int=40,
     exclude_variables::Tuple=(),
     plot_configuration_overrides::Union{Dict,Nothing}=nothing,
+    backend::Oceananigans.OutputReaders.AbstractDataBackend=InMemory(),
+    times::Union{AbstractVector,Nothing}=nothing,
 )
     filepath = output_filename(output_filename_stem, model_output)
-    field_timeseries = FieldDataset(filepath).fields
 
-    times = first(values(field_timeseries)).times
+    field_variables = jldopen(filepath, "r") do f
+        filter!(k -> k != "t" && k ∉ exclude_variables, keys(f["timeseries"]))
+    end
+
+    field_data = Dict{String, FieldTimeSeries}(
+        name => FieldTimeSeries(filepath, name; backend, times)
+        for name in field_variables
+    )
+
+    times = first(values(field_data)).times
 
     axis_kwargs = axis_properties(model_output, grid, times)
 
@@ -1053,7 +1059,7 @@ function plot_output(
     )
 
     field_variables = ordered_field_variables(
-        field_timeseries, variable_plot_configurations, exclude_variables
+        field_variables, variable_plot_configurations
     )
 
     n_columns, n_rows = plot_grid_dimensions(length(field_variables), max_columns)
@@ -1071,7 +1077,7 @@ function plot_output(
         row, col = plot_row_column_indices(variable_index, n_columns, row_offset)
         axis = Axis(fig[row, col]; title="$(config.label) / $(config.unit)", axis_kwargs...)
         artist = plot_field_on_axis!(
-            axis, plot_output_type, field_timeseries[variable], time_index, config
+            axis, plot_output_type, field_data[variable], time_index, config
         )
         !isnothing(artist) && Colorbar(fig[row, col + 1], artist)
     end
