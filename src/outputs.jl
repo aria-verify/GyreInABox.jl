@@ -974,7 +974,7 @@ function plot_field_on_axis!(
         for (i, s) in enumerate(dims)
     )
     if dim_x == dim_y == dim_z == 1
-        lines!(axis, times / 1day, field_timeseries[indices...])
+        lines!(axis, times, field_timeseries[indices...])
         nothing
     else
         free_dimension_values= if dim_x > 1 && dim_y == dim_z == 1
