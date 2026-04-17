@@ -1036,7 +1036,7 @@ function plot_output(
     title_height::Int=40,
     exclude_variables::Tuple=(),
     plot_configuration_overrides::Union{Dict,Nothing}=nothing,
-    backend::Oceananigans.OutputReaders.AbstractDataBackend=InMemory(),
+    backend::Union{InMemory, OnDisk}=InMemory(),
     times::Union{AbstractVector,Nothing}=nothing,
 )
     filepath = output_filename(output_filename_stem, model_output)
