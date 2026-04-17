@@ -566,7 +566,7 @@ end
 function axis_xlimits(::XDepthSlice, grid::RectilinearGrid, ::AbstractVector)
     extrema(xnodes(grid, Face()))
 end
-function axis_xlimits(::YDepthSlice, grid::RectilinearGrid, ::AbstractVector)
+function axis_xlimits(::YDepthOutputs, grid::RectilinearGrid, ::AbstractVector)
     extrema(ynodes(grid, Face()))
 end
 
