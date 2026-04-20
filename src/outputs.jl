@@ -452,7 +452,7 @@ function indices(output::Union{MOCStrength,MeridionalHeatTransport}, grid::Recti
 end
 
 """
-    $(FUNCTIONAME)(output, model)
+    $(FUNCTIONNAME)(output, model)
 
 Named tuple of output variables (fields) deriving from those in `model` to 
 record for output type `output`.
