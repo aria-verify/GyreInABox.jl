@@ -23,30 +23,24 @@ using Aqua
             z=(-2000, 0),
             topology=(Bounded, Bounded, Bounded),
         )
+        immersed_boundary_grid = ImmersedBoundaryGrid(
+            rectilinear_grid, GridFittedBottom((x, y) -> -2000. + x + 0.5 * y)
+        )
+        grids = (latitude_longitude_grid, rectilinear_grid, immersed_boundary_grid)
         times = 0.:0.1:1.
         all_output_types = (
             HorizontalSlice(),
-            LongitudeDepthSlice(),
-            LatitudeDepthSlice(),
-            XDepthSlice(),
-            YDepthSlice(),
+            XDepthSlice(; y_or_latitude=0.),
+            YDepthSlice(; x_or_longitude=0.),
             DepthAveraged(),
             FreeSurfaceFields(),
             MOCStreamFunction(),
             BarotropicStreamFunction(),
-            MOCStrength(; y_or_latitude=1000.),
-            MeridionalHeatTransport(; y_or_latitude=1000.),
+            MOCStrength(; y_or_latitude=0.),
+            MeridionalHeatTransport(; y_or_latitude=0.),
             AverageKineticEnergy(),
             HorizontallyAveragedTracers(),
         )
-        grid_dependent_output_types = [
-            latitude_longitude_grid =>
-                filter(o -> !isa(o, Union{XDepthSlice,YDepthSlice}), all_output_types),
-            rectilinear_grid => filter(
-                o -> !isa(o, Union{LongitudeDepthSlice,LatitudeDepthSlice}),
-                all_output_types,
-            ),
-        ]
         @testset "Grid independent functions" begin
             for output in all_output_types
                 @test GyreInABox.label(output) isa Symbol
@@ -54,8 +48,8 @@ using Aqua
             end
         end
         @testset "Grid dependent functions" begin
-            for (grid, output_types) in grid_dependent_output_types
-                for output in output_types
+            for grid in grids
+                for output in all_output_types
                     model = HydrostaticFreeSurfaceModel(grid; tracers=(:T, :S))
                     @test GyreInABox.outputs(output, model) isa NamedTuple
                     @test GyreInABox.indices(output, grid) isa Tuple

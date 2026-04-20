@@ -9,7 +9,7 @@ abstract type AbstractScalarModelOutput{S} <: AbstractModelOutput{S} end
 """
 $(TYPEDEF)
 
-Horizontal (latitude-longitude) slice output.
+Horizontal (latitude-longitude or x-y) slice output.
     
 $(TYPEDSIGNATURES)
     
@@ -29,59 +29,20 @@ end
 """
 $(TYPEDEF)
 
-Vertical (longitude-depth) slice output.
+Vertical (x-depth or longitude-depth) slice output.
     
 $(TYPEDSIGNATURES)
     
 ## Details
 
-Records vertical slices through model velocity and tracer fields at specified latitude.
-
-$(TYPEDFIELDS)
-"""
-@kwdef struct LongitudeDepthSlice{S,T} <: AbstractVerticalModelOutput{S}
-    "Latitude of slice / °"
-    latitude::T = 45.0
-    "Schedule to record output at"
-    schedule::S = TimeInterval(1day)
-end
-
-"""
-$(TYPEDEF)
-
-Vertical (latitude-depth) slice output.
-    
-$(TYPEDSIGNATURES)
-    
-## Details
-
-Records vertical slices through model velocity and tracer fields at specified longitude.
-
-$(TYPEDFIELDS)
-"""
-@kwdef struct LatitudeDepthSlice{S,T} <: AbstractVerticalModelOutput{S}
-    "Longitude of slice / °"
-    longitude::T = 30.0
-    "Schedule to record output at"
-    schedule::S = TimeInterval(1day)
-end
-
-"""
-$(TYPEDEF)
-
-Vertical (x-depth) slice output.
-    
-$(TYPEDSIGNATURES)
-    
-## Details
-
-Records vertical slices through model velocity and tracer fields at specified y coordinate.
+Records vertical slices through model velocity and tracer fields at specified y coordinate
+(if on a rectilinear grid) or latitude coordinate (if on a latitude-longitude grid).
 
 $(TYPEDFIELDS)
 """
 @kwdef struct XDepthSlice{S,T} <: AbstractVerticalModelOutput{S}
-    "y coordinate of slice / m"
-    y::T = 1000.0
+    "y / m or latitude / ° coordinate to record output at"
+    y_or_latitude::T
     "Schedule to record output at"
     schedule::S = TimeInterval(1day)
 end
@@ -89,26 +50,25 @@ end
 """
 $(TYPEDEF)
 
-Vertical (y-depth) slice output.
+Vertical (y-depth or latitude-depth) slice output.
     
 $(TYPEDSIGNATURES)
     
 ## Details
 
-Records vertical slices through model velocity and tracer fields at specified x coordinate.
+Records vertical slices through model velocity and tracer fields at specified x coordinate
+(if on a rectilinear grid) or longitude coordinate (if on a latitude-longitude grid).
 
 $(TYPEDFIELDS)
 """
 @kwdef struct YDepthSlice{S,T} <: AbstractVerticalModelOutput{S}
-    "x coordinate of slice / m"
-    x::T = 500.0
+    "x / m or longitude / ° coordinate to record output at"
+    x_or_longitude::T
     "Schedule to record output at"
     schedule::S = TimeInterval(1day)
 end
 
-SliceOutputs = Union{
-    HorizontalSlice,LongitudeDepthSlice,LatitudeDepthSlice,XDepthSlice,YDepthSlice
-}
+SliceOutputs = Union{HorizontalSlice,XDepthSlice,YDepthSlice}
 
 """
 $(TYPEDEF)
@@ -221,7 +181,6 @@ $(TYPEDFIELDS)
     schedule::S = AveragedTimeInterval(30day, window=30day)
 end
 
-LatitudeDepthOutputs = Union{LatitudeDepthSlice,MOCStreamFunction}
 YDepthOutputs = Union{YDepthSlice,MOCStreamFunction}
 
 """
@@ -428,17 +387,8 @@ $(TYPEDSIGNATURES)
 function label(::AbstractModelOutput) end
 
 label(output::HorizontalSlice) = Symbol("horizontal_slice_at_depth_$(output.depth)m")
-
-function label(output::LongitudeDepthSlice)
-    Symbol("longitude_depth_slice_at_latitude_$(output.latitude)deg")
-end
-
-function label(output::LatitudeDepthSlice)
-    Symbol("latitude_depth_slice_at_longitude_$(output.longitude)deg")
-end
-
-label(output::XDepthSlice) = Symbol("x_depth_slice_at_y_$(output.y)m")
-label(output::YDepthSlice) = Symbol("y_depth_slice_at_x_$(output.x)m")
+label(output::XDepthSlice) = Symbol("x_depth_slice_at_y_$(output.y_or_latitude)m_or_deg")
+label(output::YDepthSlice) = Symbol("y_depth_slice_at_x_$(output.x_or_longitude)m_or_deg")
 label(::DepthAveraged) = :depth_averaged
 label(::FreeSurfaceFields) = :free_surface_fields
 label(::MOCStreamFunction) = :moc_stream_function
@@ -469,20 +419,20 @@ function indices(output::HorizontalSlice, grid::AbstractUnderlyingGrid)
     (:, :, clamp(searchsortedfirst(znodes(grid, Face()), output.depth), 1:grid.Nz))
 end
 
-function indices(output::LongitudeDepthSlice, grid::LatitudeLongitudeGrid)
-    (:, clamp(searchsortedfirst(φnodes(grid, Face()), output.latitude), 1:grid.Ny), :)
+function indices(output::XDepthSlice, grid::LatitudeLongitudeGrid)
+    (:, clamp(searchsortedfirst(φnodes(grid, Face()), output.y_or_latitude), 1:grid.Ny), :)
 end
 
-function indices(output::LatitudeDepthSlice, grid::LatitudeLongitudeGrid)
-    (clamp(searchsortedfirst(λnodes(grid, Face()), output.longitude), 1:grid.Nx), :, :)
+function indices(output::YDepthSlice, grid::LatitudeLongitudeGrid)
+    (clamp(searchsortedfirst(λnodes(grid, Face()), output.x_or_longitude), 1:grid.Nx), :, :)
 end
 
 function indices(output::XDepthSlice, grid::RectilinearGrid)
-    (:, clamp(searchsortedfirst(ynodes(grid, Face()), output.y), 1:grid.Ny), :)
+    (:, clamp(searchsortedfirst(ynodes(grid, Face()), output.y_or_latitude), 1:grid.Ny), :)
 end
 
 function indices(output::YDepthSlice, grid::RectilinearGrid)
-    (clamp(searchsortedfirst(xnodes(grid, Face()), output.x), 1:grid.Nx), :, :)
+    (clamp(searchsortedfirst(xnodes(grid, Face()), output.x_or_longitude), 1:grid.Nx), :, :)
 end
 
 function indices(
@@ -641,10 +591,8 @@ $(TYPEDSIGNATURES)
 function axis_xlabel end
 
 axis_xlabel(::AbstractHorizontalModelOutput, ::LatitudeLongitudeGrid) = "Longitude λ / ᵒ"
-axis_xlabel(::LongitudeDepthSlice, ::LatitudeLongitudeGrid) = "Longitude λ / ᵒ"
-function axis_xlabel(::LatitudeDepthOutputs, ::LatitudeLongitudeGrid)
-    "Latitude ϕ / ᵒ"
-end
+axis_xlabel(::XDepthSlice, ::LatitudeLongitudeGrid) = "Longitude λ / ᵒ"
+axis_xlabel(::YDepthOutputs, ::LatitudeLongitudeGrid) = "Latitude ϕ / ᵒ"
 axis_xlabel(::AbstractHorizontalModelOutput, ::RectilinearGrid) = "x / m"
 axis_xlabel(::XDepthSlice, ::RectilinearGrid) = "x / m"
 axis_xlabel(::YDepthOutputs, ::RectilinearGrid) = "y / m"
@@ -717,10 +665,10 @@ function axis_xlimits(
 )
     extrema(xnodes(grid, Face()))
 end
-function axis_xlimits(::LongitudeDepthSlice, grid::LatitudeLongitudeGrid, ::AbstractVector)
+function axis_xlimits(::XDepthSlice, grid::LatitudeLongitudeGrid, ::AbstractVector)
     extrema(λnodes(grid, Face()))
 end
-function axis_xlimits(::LatitudeDepthOutputs, grid::LatitudeLongitudeGrid, ::AbstractVector)
+function axis_xlimits(::YDepthOutputs, grid::LatitudeLongitudeGrid, ::AbstractVector)
     extrema(φnodes(grid, Face()))
 end
 function axis_xlimits(::XDepthSlice, grid::RectilinearGrid, ::AbstractVector)
@@ -735,6 +683,11 @@ function axis_xlimits(
 )
     extrema(times / 1day)
 end
+function axis_xlimits(
+    output::AbstractModelOutput, grid::ImmersedBoundaryGrid, times::AbstractVector
+)
+    axis_xlimits(output, grid.underlying_grid, times)
+end
 
 function axis_ylimits(
     ::AbstractHorizontalModelOutput, grid::LatitudeLongitudeGrid, ::AbstractVector
@@ -747,22 +700,21 @@ function axis_ylimits(
     extrema(ynodes(grid, Face()))
 end
 function axis_ylimits(
-    ::AbstractVerticalModelOutput, grid::AbstractUnderlyingGrid, ::AbstractVector
+    ::Union{AbstractVerticalModelOutput,HorizontallyAveragedTracers},
+    grid::AbstractUnderlyingGrid,
+    ::AbstractVector,
 )
     extrema(znodes(grid, Face()))
 end
 function axis_ylimits(
-    ::HorizontallyAveragedTracers, grid::AbstractUnderlyingGrid, ::AbstractVector
+    ::AbstractScalarModelOutput, grid::AbstractUnderlyingGrid, ::AbstractVector
 )
-    extrema(znodes(grid, Face()))
-end
-function axis_ylimits(::AbstractScalarModelOutput, grid::AbstractUnderlyingGrid, ::AbstractVector)
     nothing
 end
-function axis_limits(
-    output::AbstractModelOutput, grid::ImmersedBoundaryGrid, times::AbstractVector
+function axis_ylimits(
+    output::AbstractModelOutput, grid::ImdmersedBoundaryGrid, times::AbstractVector
 )
-    axis_limits(output, grid.underlying_grid, times)
+    axis_ylimits(output, grid.underlying_grid, times)
 end
 
 function axis_limits(

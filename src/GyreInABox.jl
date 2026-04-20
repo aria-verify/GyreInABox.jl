@@ -55,7 +55,7 @@ using JLD2
 
 export DoubleGyreParameters, Spall2011Parameters
 export SimulationConfiguration
-export HorizontalSlice, LongitudeDepthSlice, LatitudeDepthSlice, XDepthSlice, YDepthSlice
+export HorizontalSlice, XDepthSlice, YDepthSlice
 export DepthAveraged, FreeSurfaceFields, MOCStreamFunction, BarotropicStreamFunction
 export MOCStrength, MeridionalHeatTransport, HorizontallyAveragedTracers, AverageKineticEnergy
 export setup_model, initialize!, setup_simulation
