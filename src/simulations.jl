@@ -129,7 +129,9 @@ function plot_outputs(
     kwargs...
 )
     for output_type in configuration.output_types
-        plot_output(plot_output_type, configuration.output_filename, output_type, grid; kwargs...)
+        if is_compatible(plot_output_type, output_type)
+            plot_output(plot_output_type, configuration.output_filename, output_type, grid; kwargs...)
+        end
     end
 end
 

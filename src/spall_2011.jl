@@ -335,8 +335,12 @@ function coriolis(parameters::Spall2011Parameters)
     BetaPlane(; f₀=parameters.coriolis_offset, β=parameters.coriolis_coefficient)
 end
 tracers(parameters::Spall2011Parameters) = (:T, :S)
-momentum_advection(parameters::Spall2011Parameters) = Oceananigans.WENOVectorInvariant(order=parameters.advection_order)
-tracer_advection(parameters::Spall2011Parameters) = Oceananigans.WENO(order=parameters.advection_order)
+function momentum_advection(parameters::Spall2011Parameters)
+    Oceananigans.WENOVectorInvariant(; order=parameters.advection_order)
+end
+function tracer_advection(parameters::Spall2011Parameters)
+    Oceananigans.WENO(; order=parameters.advection_order)
+end
 
 function initialize!(model::Oceananigans.AbstractModel, parameters::Spall2011Parameters)
     function T_initial(x, y, z)
@@ -393,4 +397,27 @@ function plot_domain_and_forcing(
     lines!(ax4, surface_evaporation_minus_precipitation.(y, (parameters,)), y)
     resize_to_layout!(figure)
     figure
+end
+
+struct HorizontalCircularRegionMask{T}
+    x_center::T
+    y_center::T
+    radius::T
+end
+
+function (mask::HorizontalCircularRegionMask)(i, j, k, grid, field)
+    x, y, z = node(i, j, k, field)
+    (x - mask.x_center)^2 + (y - mask.y_center)^2 < mask.radius^2
+end
+
+function Base.summary(mask::HorizontalCircularRegionMask)
+    "circular_region_at_x_$(mask.x_center)_y_$(mask.y_center)_radius_$(mask.radius)"
+end
+
+function northern_basin_mask(parameters::Spall2011Parameters)
+    HorizontalCircularRegionMask(
+        parameters.domain_size_x / 2,
+        parameters.domain_size_y - parameters.domain_size_x / 2,
+        parameters.domain_size_x / 10,
+    )
 end
