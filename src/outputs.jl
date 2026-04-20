@@ -484,60 +484,57 @@ function outputs(
     merge((; η=model.free_surface.displacement), model.free_surface.barotropic_velocities)
 end
 
-function outputs(::MOCStreamFunction, model)
-    (;
-        # Scale velocities by 1 / 10⁶ so doubly spatially integrated field is in
-        # units 10⁶ m³ s⁻¹ = Sv (Sverdrup)
-        Ψᴹ=Field(
-            CumulativeIntegral(
-                Field(Integral(model.velocities.v * 1e-6; dims=1)); dims=3, reverse=true
-            ),
-        )
-    )
+"""
+Compute meridional overturning current (MOC) stream function (in Sverdrup) given 
+meridional velocity field `v`.
+
+$(TYPEDSIGNATURES)
+"""
+function moc_stream_function(v)
+    # Scale velocities by 1 / 10⁶ so doubly spatially integrated field is in
+    # units 10⁶ m³ s⁻¹ = Sv (Sverdrup)
+    Field(CumulativeIntegral(Field(Integral(v * 1e-6; dims=1)); dims=3, reverse=true))
 end
 
+"""
+Compute barotropic stream function (in Sverdrup) given meridional velocity field `v`.
+
+$(TYPEDSIGNATURES)
+"""
+function barotropic_stream_function(v)
+    # Scale velocities by 1 / 10⁶ so doubly spatially integrated field is in
+    # units 10⁶ m³ s⁻¹ = Sv (Sverdrup)
+    Field(CumulativeIntegral(Field(Integral(v * 1e-6; dims=3)); dims=1))
+end
+
+"""
+Compute meridional heat transport (in terawatts) given meridional velocity field `v`,
+temperature field `T`, sea water specific heat capacity `cₚ` and density `ρ`.
+
+$(TYPEDSIGNATURES)
+"""
+function meridional_heat_transport(v, T, cₚ, ρ)
+    # Scale so integrated field is in units TW
+    Field(Integral(1e-12 * ρ * cₚ * v * T; dims=(1, 3)))
+end
+
+outputs(::MOCStreamFunction, model) = (; Ψᴹ=moc_stream_function(model.velocities.v))
+
 function outputs(::BarotropicStreamFunction, model)
-    (;
-        # Scale velocities by 1 / 10⁶ so doubly spatially integrated field is in
-        # units 10⁶ m³ s⁻¹ = Sv (Sverdrup)
-        Ψᴮ=Field(
-            CumulativeIntegral(Field(Integral(model.velocities.v * 1e-6; dims=3)); dims=1)
-        )
-    )
+    (; Ψᴮ=barotropic_stream_function(model.velocities.v))
 end
 
 function outputs(::MOCStrength, model)
-    (;
-        # Scale velocities by 1 / 10⁶ so doubly spatially integrated field is in
-        # units 10⁶ m³ s⁻¹ = Sv (Sverdrup)
-        W=Field(
-            Reduction(
-                maximum!,
-                Field(
-                    CumulativeIntegral(
-                        Field(Integral(model.velocities.v * 1e-6; dims=1));
-                        dims=3,
-                        reverse=true,
-                    ),
-                );
-                dims=3,
-            ),
-        )
-    )
+    (; W=Field(Reduction(maximum!, moc_stream_function(model.velocities.v); dims=3)))
 end
 
 function outputs(output::MeridionalHeatTransport, model)
     (;
-        Q=Field(
-            Integral(
-                # Scale so integrated field is in units TW
-                1e-12 *
-                output.sea_water_density *
-                output.sea_water_heat_capacity *
-                model.velocities.v *
-                model.tracers.T;
-                dims=(1, 3),
-            ),
+        Q=meridional_heat_transport(
+            model.velocities.v,
+            model.tracers.T,
+            output.sea_water_heat_capacity,
+            output.sea_water_density,
         )
     )
 end
