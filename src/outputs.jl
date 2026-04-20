@@ -1010,6 +1010,16 @@ $(TYPEDSIGNATURES)
 function save_output end
 
 """
+    $(FUNCTIONNAME)(plot_output, model_output)
+
+Indicates whether `plot_output` type is compatible with `model_output` type as a boolean.
+
+$(TYPEDSIGNATURES)
+"""
+function is_compatible end
+
+
+"""
 $(TYPEDEF)
 
 Animated field plot output type.
@@ -1058,6 +1068,9 @@ function save_output(
     end
 end
 
+is_compatible(::AnimationPlotOutput, ::AbstractModelOutput) = true
+is_compatible(::AnimationPlotOutput, ::ZeroOrOneDimensionalTimeSeriesOutputs) = false 
+
 """
 $(TYPEDEF)
 
@@ -1096,6 +1109,9 @@ function save_output(
 )
     save(output_filename(output_filename_stem, model_output, "svg"), fig)
 end
+
+is_compatible(::TemporalAveragePlotOutput, ::AbstractModelOutput) = true
+is_compatible(::TemporalAveragePlotOutput, ::ZeroOrOneDimensionalTimeSeriesOutputs) = false 
 
 """
 $(TYPEDEF)
@@ -1155,6 +1171,9 @@ function save_output(
 )
     save(output_filename(output_filename_stem, model_output, "svg"), fig)
 end
+
+is_compatible(::TimeSeriesPlotOutput, ::AbstractModelOutput) = false
+is_compatible(::TimeSeriesPlotOutput, ::ZeroOrOneDimensionalTimeSeriesOutputs) = true 
 
 """
 Create plot of fields recorded as model output.
