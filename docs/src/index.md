@@ -117,7 +117,7 @@ plot_outputs(AnimationPlotOutput(), parameters, configuration)
 nothing # hide
 ```
 
-![Example simulated output (longitude-depth slice)](gyre_model_x_depth_slice_at_y_45.0_m_or_deg.mp4)
+![Example simulated output (longitude-depth slice)](gyre_model_x_depth_slice_at_y_45.0m_or_deg.mp4)
 ![Example simulated output (horizontal slice)](gyre_model_horizontal_slice_at_depth_0.0m.mp4)
 
 ## API reference
