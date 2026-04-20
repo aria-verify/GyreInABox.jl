@@ -726,7 +726,7 @@ function axis_ylimits(
     nothing
 end
 function axis_ylimits(
-    output::AbstractModelOutput, grid::ImdmersedBoundaryGrid, times::AbstractVector
+    output::AbstractModelOutput, grid::ImmersedBoundaryGrid, times::AbstractVector
 )
     axis_ylimits(output, grid.underlying_grid, times)
 end
