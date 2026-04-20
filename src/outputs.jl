@@ -380,7 +380,9 @@ ZeroOrOneDimensionalTimeSeriesOutputs = Union{
 }
 
 """
-Symbol label for output type to use in naming output file and registering output writer.
+    $(FUNCTIONNAME)(output)
+
+Symbol label for output type `output` to use in naming output file and registering output writer.
 
 $(TYPEDSIGNATURES)
 """
@@ -407,7 +409,9 @@ function label(output::HorizontallyAveragedTracers)
 end
 
 """
-Spatial grid indices output type records fields at.
+    $(FUNCTIONNAME)(output, grid)
+
+Spatial grid indices output type `output` records fields at for grid `grid`.
 
 $(TYPEDSIGNATURES)
 """
@@ -446,7 +450,10 @@ function indices(output::Union{MOCStrength,MeridionalHeatTransport}, grid::Recti
 end
 
 """
-Named tuple of output variables (fields) to record for output type.
+    $(FUNCTIONAME)(output, model)
+
+Named tuple of output variables (fields) deriving from those in `model` to 
+record for output type `output`.
     
 $(TYPEDSIGNATURES)
 """
@@ -647,13 +654,13 @@ function axis_aspect_ratio(output::AbstractModelOutput, grid::ImmersedBoundaryGr
 end
 
 """
-    $(FUNCTIONNAME)(output, grid)
+    $(FUNCTIONNAME)(output, grid, times)
 
-Axis limits for field heatmaps on grid `grid` for output type `output`.
+Horizontal (x) axis limits for field on grid `grid` and times `times` for output type `output`.
     
 $(TYPEDSIGNATURES)
 """
-function axis_limits end
+function axis_xlimits end
 
 function axis_xlimits(
     ::AbstractHorizontalModelOutput, grid::LatitudeLongitudeGrid, ::AbstractVector
@@ -689,6 +696,15 @@ function axis_xlimits(
     axis_xlimits(output, grid.underlying_grid, times)
 end
 
+"""
+    $(FUNCTIONNAME)(output, grid, times)
+
+Vertical (y) axis limits for field on grid `grid` and times `times` for output type `output`.
+    
+$(TYPEDSIGNATURES)
+"""
+function axis_ylimits end
+
 function axis_ylimits(
     ::AbstractHorizontalModelOutput, grid::LatitudeLongitudeGrid, ::AbstractVector
 )
@@ -717,9 +733,12 @@ function axis_ylimits(
     axis_ylimits(output, grid.underlying_grid, times)
 end
 
-function axis_limits(
-    output::AbstractModelOutput, grid::AbstractUnderlyingGrid, times::AbstractVector
-)
+"""
+Axis limits for field on grid `grid` and times `times` for output type `output`.
+    
+$(TYPEDSIGNATURES)
+"""
+function axis_limits(output::AbstractModelOutput, grid::AbstractGrid, times::AbstractVector)
     (axis_xlimits(output, grid, times), axis_ylimits(output, grid, times))
 end
 
