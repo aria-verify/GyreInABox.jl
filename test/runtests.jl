@@ -24,20 +24,20 @@ using Aqua
             topology=(Bounded, Bounded, Bounded),
         )
         immersed_boundary_grid = ImmersedBoundaryGrid(
-            rectilinear_grid, GridFittedBottom((x, y) -> -2000. + x + 0.5 * y)
+            rectilinear_grid, GridFittedBottom((x, y) -> -2000.0 + x + 0.5 * y)
         )
         grids = (latitude_longitude_grid, rectilinear_grid, immersed_boundary_grid)
-        times = 0.:0.1:1.
+        times = 0.0:0.1:1.0
         all_output_types = (
             HorizontalSlice(),
-            XDepthSlice(; y_or_latitude=0.),
-            YDepthSlice(; x_or_longitude=0.),
+            XDepthSlice(; y_or_latitude=0.0),
+            YDepthSlice(; x_or_longitude=0.0),
             DepthAveraged(),
             FreeSurfaceFields(),
             MOCStreamFunction(),
             BarotropicStreamFunction(),
-            MOCStrength(; y_or_latitude=0.),
-            MeridionalHeatTransport(; y_or_latitude=0.),
+            MOCStrength(; y_or_latitude=0.0),
+            MeridionalHeatTransport(; y_or_latitude=0.0),
             AverageKineticEnergy(),
             HorizontallyAveragedTracers(),
         )
@@ -55,9 +55,12 @@ using Aqua
                     @test GyreInABox.indices(output, grid) isa Tuple
                     @test GyreInABox.axis_xlabel(output, grid) isa String
                     @test GyreInABox.axis_ylabel(output, grid) isa String
-                    @test GyreInABox.axis_aspect_ratio(output, grid) isa Union{AxisAspect, Nothing}
-                    @test GyreInABox.axis_xlimits(output, grid, times) isa Union{Tuple, Nothing}
-                    @test GyreInABox.axis_ylimits(output, grid, times) isa Union{Tuple, Nothing}
+                    @test GyreInABox.axis_aspect_ratio(output, grid) isa
+                        Union{AxisAspect,Nothing}
+                    @test GyreInABox.axis_xlimits(output, grid, times) isa
+                        Union{Tuple,Nothing}
+                    @test GyreInABox.axis_ylimits(output, grid, times) isa
+                        Union{Tuple,Nothing}
                     @test GyreInABox.axis_limits(output, grid, times) isa Tuple
                 end
             end

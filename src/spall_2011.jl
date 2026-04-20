@@ -336,10 +336,10 @@ function coriolis(parameters::Spall2011Parameters)
 end
 tracers(parameters::Spall2011Parameters) = (:T, :S)
 function momentum_advection(parameters::Spall2011Parameters)
-    Oceananigans.WENOVectorInvariant(order=parameters.advection_order)
+    Oceananigans.WENOVectorInvariant(; order=parameters.advection_order)
 end
 function tracer_advection(parameters::Spall2011Parameters)
-    Oceananigans.WENO(order=parameters.advection_order)
+    Oceananigans.WENO(; order=parameters.advection_order)
 end
 
 function initialize!(model::Oceananigans.AbstractModel, parameters::Spall2011Parameters)

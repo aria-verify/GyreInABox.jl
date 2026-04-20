@@ -417,7 +417,9 @@ $(TYPEDSIGNATURES)
 """
 indices(::AbstractModelOutput, grid::AbstractGrid) = (:, :, :)
 
-indices(output::AbstractModelOutput, grid::ImmersedBoundaryGrid) = indices(output, grid.underlying_grid)
+function indices(output::AbstractModelOutput, grid::ImmersedBoundaryGrid)
+    indices(output, grid.underlying_grid)
+end
 
 function indices(output::HorizontalSlice, grid::AbstractUnderlyingGrid)
     (:, :, clamp(searchsortedfirst(znodes(grid, Face()), output.depth), 1:grid.Nz))
@@ -681,7 +683,6 @@ end
 function axis_xlimits(::YDepthOutputs, grid::RectilinearGrid, ::AbstractVector)
     extrema(ynodes(grid, Face()))
 end
-
 function axis_xlimits(
     ::ZeroOrOneDimensionalTimeSeriesOutputs, ::AbstractUnderlyingGrid, times::AbstractVector
 )
@@ -986,7 +987,6 @@ $(TYPEDSIGNATURES)
 """
 function is_compatible end
 
-
 """
 $(TYPEDEF)
 
@@ -1037,7 +1037,7 @@ function save_output(
 end
 
 is_compatible(::AnimationPlotOutput, ::AbstractModelOutput) = true
-is_compatible(::AnimationPlotOutput, ::ZeroOrOneDimensionalTimeSeriesOutputs) = false 
+is_compatible(::AnimationPlotOutput, ::ZeroOrOneDimensionalTimeSeriesOutputs) = false
 
 """
 $(TYPEDEF)
@@ -1079,7 +1079,7 @@ function save_output(
 end
 
 is_compatible(::TemporalAveragePlotOutput, ::AbstractModelOutput) = true
-is_compatible(::TemporalAveragePlotOutput, ::ZeroOrOneDimensionalTimeSeriesOutputs) = false 
+is_compatible(::TemporalAveragePlotOutput, ::ZeroOrOneDimensionalTimeSeriesOutputs) = false
 
 """
 $(TYPEDEF)
@@ -1107,8 +1107,8 @@ function plot_field_on_axis!(
     spatial_dims..., _ = dim_x, dim_y, dim_z, dim_t = size(field_timeseries)
     indices = field_timeseries.indices
     indices = Tuple(
-        s == 1 && indices[i] != Colon() ? first(indices[i]) : (s > 1 ? Colon() : 1)
-        for (i, s) in enumerate(spatial_dims)
+        s == 1 && indices[i] != Colon() ? first(indices[i]) : (s > 1 ? Colon() : 1) for
+        (i, s) in enumerate(spatial_dims)
     )
     if dim_x == dim_y == dim_z == 1
         lines!(axis, times, [field_timeseries[i][indices...] for i in 1:length(times)])
@@ -1141,7 +1141,7 @@ function save_output(
 end
 
 is_compatible(::TimeSeriesPlotOutput, ::AbstractModelOutput) = false
-is_compatible(::TimeSeriesPlotOutput, ::ZeroOrOneDimensionalTimeSeriesOutputs) = true 
+is_compatible(::TimeSeriesPlotOutput, ::ZeroOrOneDimensionalTimeSeriesOutputs) = true
 
 """
 Create plot of fields recorded as model output.
@@ -1183,7 +1183,7 @@ function plot_output(
     title_height::Int=40,
     exclude_variables::Tuple=(),
     plot_configuration_overrides::Union{Dict,Nothing}=nothing,
-    backend::Union{InMemory, OnDisk}=InMemory(),
+    backend::Union{InMemory,OnDisk}=InMemory(),
     times::Union{AbstractVector,Nothing}=nothing,
 )
     filepath = output_filename(output_filename_stem, model_output)
@@ -1192,9 +1192,8 @@ function plot_output(
         filter!(k -> k != "t" && k ∉ exclude_variables, keys(f["timeseries"]))
     end
 
-    field_data = Dict{String, FieldTimeSeries}(
-        name => FieldTimeSeries(filepath, name; backend, times)
-        for name in field_variables
+    field_data = Dict{String,FieldTimeSeries}(
+        name => FieldTimeSeries(filepath, name; backend, times) for name in field_variables
     )
 
     times = first(values(field_data)).times
@@ -1205,9 +1204,7 @@ function plot_output(
         plot_configuration_overrides
     )
 
-    field_variables = ordered_field_variables(
-        field_variables, variable_plot_configurations
-    )
+    field_variables = ordered_field_variables(field_variables, variable_plot_configurations)
 
     n_columns, n_rows = plot_grid_dimensions(length(field_variables), max_columns)
 
