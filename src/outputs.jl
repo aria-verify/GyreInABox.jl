@@ -224,6 +224,46 @@ end
 LatitudeDepthOutputs = Union{LatitudeDepthSlice,MOCStreamFunction}
 YDepthOutputs = Union{YDepthSlice,MOCStreamFunction}
 
+"""
+$(TYPEDEF)
+
+Meridional overturning circulation (MOC) strength output.
+    
+$(TYPEDSIGNATURES)
+    
+## Details
+
+Records scalar fields corresponding to maximum over depth of stream function of 
+meridional overturning circulation (MOC) at a given y / latitude coordinate.
+
+The MOC streamfunction is computed here as vertically accumulated - that is cumulative vertical
+integral with respect to depth - of zonally integrated meridional velocity component:
+
+```math
+\\Psi^M(\\varphi, z, t) = 
+\\int_{0}^z \\int_{\\lambda_W}^{\\lambda_E} 
+  v(\\lambda, \\varphi, z', t)
+\\,\\mathrm{d}\\lambda \\,\\mathrm{d}z'
+```
+
+or in rectilinear coordinates:
+
+```math
+\\Psi^M(y, z, t) = 
+\\int_{0}^z \\int_{x_W}^{x_E} 
+  v(x, y, z', t)
+\\,\\mathrm{d}x \\,\\mathrm{d}z'
+```
+
+The scalar field recorded here corresponds to ``\\max_z \\Psi^M(\\varphi_r, z, t)``
+(on a latitude-longitude grid) or ``\\max_z \\Psi^M(y_r, z, t)`` (on a rectilinear
+grid) where ``\\varphi_r`` and ``y_r`` are the latitude and y coordinates the
+strength is measured at respectively.
+
+The outputted strength is scaled to be in sverdrup (10⁶ m³ s⁻¹) units.
+
+$(TYPEDFIELDS)
+"""
 @kwdef struct MOCStrength{S,T} <: AbstractScalarModelOutput{S}
     "y / m or latitude / ° coordinate to record output at"
     y_or_latitude::T
@@ -231,6 +271,43 @@ YDepthOutputs = Union{YDepthSlice,MOCStreamFunction}
     schedule::S = AveragedTimeInterval(5day, window=5day)
 end
 
+"""
+$(TYPEDEF)
+
+Meridional heat transport output.
+    
+$(TYPEDSIGNATURES)
+    
+## Details
+
+Records scalar fields corresponding to meridional heat transport at a
+given y / latitude coordinate.
+
+The meridional heat transport is computed here as:
+
+```math
+Q(\\varphi, t) = 
+\\int_{z_B}^{z_T} \\int_{\\lambda_W}^{\\lambda_E} 
+  c_p \rho v(\\lambda, \\varphi, z, t) \theta(\\lambda, \\varphi, z, t)
+\\,\\mathrm{d}\\lambda \\,\\mathrm{d}z
+```
+
+or in rectilinear coordinates:
+
+```math
+Q(y, t) = 
+\\int_{z_B}^{z_T} \\int_{x_W}^{x_E} 
+  c_p \rho v(x, y, z, t) \theta(x, y, z, t)
+\\,\\mathrm{d}x \\,\\mathrm{d}z
+```
+
+where ``c_p`` and ``\\rho`` are reference values of the specific heat capacity
+and density of sea water respectively.
+
+The outputted heat transport is scaled to be in terrawatt (10¹² W) units.
+
+$(TYPEDFIELDS)
+"""
 @kwdef struct MeridionalHeatTransport{S,T} <: AbstractScalarModelOutput{S}
     "y / m or latitude / ° coordinate to record output at"
     y_or_latitude::T
@@ -242,6 +319,47 @@ end
     sea_water_heat_capacity::T = 3991.0
 end
 
+"""
+$(TYPEDEF)
+
+Average kinetic energy output.
+    
+$(TYPEDSIGNATURES)
+    
+## Details
+
+Records scalar fields corresponding to average kinetic energy over whole domain or
+a specified region.
+
+The average kinetic energy is computed here as:
+
+```math
+eₖ(t) = 
+\\int_{\\lambda_W}^{\\lambda_E} \\int_{\\varphi_S}^{\\varphi_N} \\int_{z_B}^{z_T} 
+  \\frac{1}{2} (u^2 + v^2 + w^2)(\\lambda, \\varphi, z, t) m(\\lambda, \\varphi, z)
+\\,\\mathrm{d}\\lambda \\,\\mathrm{d}z /
+\\int_{\\lambda_W}^{\\lambda_E} \\int_{\\varphi_S}^{\\varphi_N} \\int_{z_B}^{z_T} 
+  m(\\lambda, \\varphi, z)
+\\,\\mathrm{d}\\lambda \\,\\mathrm{d}z
+```
+
+or in rectilinear coordinates:
+
+```math
+eₖ(t) = 
+\\int_{x_W}^{x_E} \\int_{y_S}^{y_N} \\int_{z_B}^{z_T} 
+  \\frac{1}{2} (u^2 + v^2 + w^2)(x, y, z, t) m(x, y, z)
+\\,\\mathrm{d}\\lambda \\,\\mathrm{d}z /
+\\int_{x_W}^{x_E} \\int_{y_S}^{y_N} \\int_{z_B}^{z_T} 
+  m(x, y, z)
+\\,\\mathrm{d}\\lambda \\,\\mathrm{d}z
+```
+
+where ``m: \\mathbb{R}^3 \to \\{0, 1\\}`` is a binary mask function defining the region
+over which to average. 
+
+$(TYPEDFIELDS)
+"""
 @kwdef struct AverageKineticEnergy{S,M} <: AbstractScalarModelOutput{S}
     "Schedule to record output at"
     schedule::S = AveragedTimeInterval(5day, window=5day)
@@ -249,6 +367,48 @@ end
     region_mask::M = nothing
 end
 
+"""
+$(TYPEDEF)
+
+Horizontally averaged tracer fields output
+    
+$(TYPEDSIGNATURES)
+    
+## Details
+
+Records one-dimensional fields corresponding to horizontal averages of tracer fields
+at different depths, with horizontal averages computed over whole domain or a specified
+region.
+
+The horizontally averaged tracer fields are computed here as:
+
+```math
+\\bar{T}(z, t) = 
+\\int_{\\lambda_W}^{\\lambda_E} \\int_{\\varphi_S}^{\\varphi_N}
+  T(\\lambda, \\varphi, z, t) m(\\lambda, \\varphi, z)
+\\,\\mathrm{d}\\lambda \\,\\mathrm{d}z /
+\\int_{\\lambda_W}^{\\lambda_E} \\int_{\\varphi_S}^{\\varphi_N}
+  m(\\lambda, \\varphi, z)
+\\,\\mathrm{d}\\lambda \\,\\mathrm{d}z
+```
+
+or in rectilinear coordinates:
+
+```math
+\\bar{T}(z, t) = 
+\\int_{x_W}^{x_E} \\int_{y_S}^{y_N}
+  T(x, y, z, t) m(x, y, z)
+\\,\\mathrm{d}\\lambda \\,\\mathrm{d}z /
+\\int_{x_W}^{x_E} \\int_{y_S}^{y_N}
+  m(x, y, z)
+\\,\\mathrm{d}\\lambda \\,\\mathrm{d}z
+```
+
+where ``T` is a tracer field and  ``m: \\mathbb{R}^3 \to \\{0, 1\\}`` is a binary mask
+function defining the region over which to average. 
+
+$(TYPEDFIELDS)
+"""
 @kwdef struct HorizontallyAveragedTracers{S,M} <: AbstractModelOutput{S}
     "Schedule to record output at"
     schedule::S = AveragedTimeInterval(5day, window=5day)
