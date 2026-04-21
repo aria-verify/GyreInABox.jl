@@ -247,7 +247,7 @@ The meridional heat transport is computed here as:
 ```math
 Q(\\varphi, t) = 
 \\int_{z_B}^{z_T} \\int_{\\lambda_W}^{\\lambda_E} 
-  c_p \rho v(\\lambda, \\varphi, z, t) \theta(\\lambda, \\varphi, z, t)
+  c_p \\rho v(\\lambda, \\varphi, z, t) T(\\lambda, \\varphi, z, t)
 \\,\\mathrm{d}\\lambda \\,\\mathrm{d}z
 ```
 
@@ -256,7 +256,7 @@ or in rectilinear coordinates:
 ```math
 Q(y, t) = 
 \\int_{z_B}^{z_T} \\int_{x_W}^{x_E} 
-  c_p \rho v(x, y, z, t) \theta(x, y, z, t)
+  c_p \\rho v(x, y, z, t) T(x, y, z, t)
 \\,\\mathrm{d}x \\,\\mathrm{d}z
 ```
 
@@ -294,24 +294,30 @@ The average kinetic energy is computed here as:
 
 ```math
 eₖ(t) = 
+\\frac{
 \\int_{\\lambda_W}^{\\lambda_E} \\int_{\\varphi_S}^{\\varphi_N} \\int_{z_B}^{z_T} 
   \\frac{1}{2} (u^2 + v^2 + w^2)(\\lambda, \\varphi, z, t) m(\\lambda, \\varphi, z)
-\\,\\mathrm{d}\\lambda \\,\\mathrm{d}z /
+\\,\\mathrm{d}\\lambda \\,\\mathrm{d}z
+}{
 \\int_{\\lambda_W}^{\\lambda_E} \\int_{\\varphi_S}^{\\varphi_N} \\int_{z_B}^{z_T} 
   m(\\lambda, \\varphi, z)
 \\,\\mathrm{d}\\lambda \\,\\mathrm{d}z
+}
 ```
 
 or in rectilinear coordinates:
 
 ```math
-eₖ(t) = 
+eₖ(t) =
+\\frac{
 \\int_{x_W}^{x_E} \\int_{y_S}^{y_N} \\int_{z_B}^{z_T} 
   \\frac{1}{2} (u^2 + v^2 + w^2)(x, y, z, t) m(x, y, z)
-\\,\\mathrm{d}\\lambda \\,\\mathrm{d}z /
+\\,\\mathrm{d}\\lambda \\,\\mathrm{d}z
+}{
 \\int_{x_W}^{x_E} \\int_{y_S}^{y_N} \\int_{z_B}^{z_T} 
   m(x, y, z)
 \\,\\mathrm{d}\\lambda \\,\\mathrm{d}z
+}
 ```
 
 where ``m: \\mathbb{R}^3 \to \\{0, 1\\}`` is a binary mask function defining the region
@@ -363,7 +369,7 @@ or in rectilinear coordinates:
 \\,\\mathrm{d}\\lambda \\,\\mathrm{d}z
 ```
 
-where ``T` is a tracer field and  ``m: \\mathbb{R}^3 \to \\{0, 1\\}`` is a binary mask
+where ``T`` is a tracer field and  ``m: \\mathbb{R}^3 \to \\{0, 1\\}`` is a binary mask
 function defining the region over which to average. 
 
 $(TYPEDFIELDS)
