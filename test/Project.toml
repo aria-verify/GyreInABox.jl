@@ -1,11 +1,13 @@
 [deps]
+Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
-Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 GyreInABox = "d40f67ff-4a83-48da-8213-065d3ac3739e"
 Oceananigans = "9e8cae18-63c1-5223-a75c-80ca9d6e9a09"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [sources]
 GyreInABox = {path = ".."}
 
 [compat]
-Documenter = "1.17.0"
+Aqua = "0.8.14"
+Test = "1.10.0"
