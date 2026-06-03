@@ -3,6 +3,9 @@ uuid = "d40f67ff-4a83-48da-8213-065d3ac3739e"
 version = "0.1.0-DEV"
 authors = ["Matt Graham and contributors"]
 
+[workspace]
+projects = ["test", "docs", "scripts"]
+
 [deps]
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 DocStringExtensions = "ffbed154-4ef7-542d-bbb7-c09d3a79fcae"
@@ -16,11 +19,8 @@ SeawaterPolynomials = "d496a93d-167e-4197-9f49-d3af4ff8fe40"
 CairoMakie = "0.15.7"
 DocStringExtensions = "0.9.5"
 JLD2 = "0.6.4"
-Oceananigans = "0.105, 0.106"
+Oceananigans = "0.105, 0.106, 0.110"
 Printf = "1.10.0"
 Random = "1.10.0"
 SeawaterPolynomials = "0.3.10"
 julia = "1.12.0"
-
-[workspace]
-projects = ["test", "docs", "scripts"]
