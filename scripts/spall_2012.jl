@@ -64,12 +64,7 @@ function main()
 
     args["mpi"] && MPI.Init()
 
-    @onrank 0 begin
-        @info "Parsed args:"
-        for (arg, val) in args
-            @info "  $arg: $val"
-        end
-    end
+    @onrank 0 @info "Parsed args\n  " * join(("$arg = $val" for (arg, val) in args), "\n  ")
 
     architecture = args["cpu"] ? CPU() : GPU()
 
@@ -93,7 +88,11 @@ function main()
     timestamp = format(now(), "yyyy-mm-dd_HH-MM-SS")
 
     run_directory = joinpath(args["output-directory"], "$timestamp-run")
-    @onrank 0 mkdir(run_directory)
+
+    @onrank 0 begin
+        mkdir(run_directory)
+        @info "Writing outputs to $run_directory"
+    end
 
     configuration = SimulationConfiguration(
         architecture=architecture,
