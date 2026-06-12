@@ -2,8 +2,10 @@ using ArgParse
 using GyreInABox
 using JLD2
 using Oceananigans
+using Oceananigans.DistributedComputations
 using Oceananigans.Units
 using CUDA
+using MPI
 using Dates: now, format
 
 function parse_commandline()
@@ -35,8 +37,18 @@ function parse_commandline()
             nargs = 3
             arg_type = Int
             default = [200, 400, 30]
+        "--free-surface-substeps", "-S"
+            help = "Number of substeps to use in split-explicit free surface scheme (defaults to adaptive if not specified)"
+            arg_type = Int
+        "--output-directory", "-O"
+            help = "Directory to write outputs to"
+            arg_type = String
+            default = "."
         "--cpu"
             help = "Run on CPU (rather than GPU, the default)"
+            action = :store_true
+        "--mpi"
+            help = "Use MPI to distribute computations"
             action = :store_true
         "--use-eddy-closure"
             help = "Use a dynamic Smagorinsky eddy closure"
@@ -50,12 +62,20 @@ function main()
 
     args = parse_commandline()
 
-    @info "Parsed args:"
-    for (arg, val) in args
-        @info "  $arg: $val"
+    args["mpi"] && MPI.Init()
+
+    @onrank 0 begin
+        @info "Parsed args:"
+        for (arg, val) in args
+            @info "  $arg: $val"
+        end
     end
 
     architecture = args["cpu"] ? CPU() : GPU()
+
+    if args["mpi"]
+        architecture = Distributed(architecture)
+    end
 
     output_interval = args["output-interval-days"] * 1day
 
@@ -65,9 +85,15 @@ function main()
         northern_basin_surface_evaporation=args["northern-basin-surface-evaporation"],
         sill_height=args["sill-height"],
         use_eddy_closure=args["use-eddy-closure"],
+        split_explicit_free_surface_substeps=args["free-surface-substeps"],
     )
 
     mask = GyreInABox.northern_basin_mask(parameters)
+
+    timestamp = format(now(), "yyyy-mm-dd_HH-MM-SS")
+
+    run_directory = joinpath(args["output-directory"], "$timestamp-run")
+    @onrank 0 mkdir(run_directory)
 
     configuration = SimulationConfiguration(
         architecture=architecture,
@@ -76,7 +102,7 @@ function main()
         maximum_timestep=60minute,
         wizard_max_change=1.1,
         wizard_update_interval=10,
-        output_filename="spall_2012_gyre_model",
+        output_filename=joinpath(run_directory, "spall_2012_gyre_model"),
         output_types=(
             HorizontalSlice(schedule=TimeInterval(output_interval)),
             HorizontalSlice(depth=parameters.bottom_depth + parameters.sill_height, schedule=TimeInterval(output_interval)),
@@ -92,14 +118,11 @@ function main()
         ),
         progress_message_interval=1000
     )
-    
-    timestamp = format(now(), "yyyy-mm-dd_HH-MM-SS")
 
-    run_directory = mkdir("$timestamp-run")
-    cd(run_directory)
-
-    jldsave("parameters.jld2"; parameters)
-    jldsave("configuration.jld2"; configuration)
+    @onrank 0 begin
+        jldsave(joinpath(run_directory, "parameters.jld2"); parameters)
+        jldsave(joinpath(run_directory, "configuration.jld2"); configuration)
+    end
 
     run_simulation(parameters, configuration)
 
