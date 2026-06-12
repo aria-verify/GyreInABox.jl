@@ -75,13 +75,23 @@ Construct tracer advection scheme for ocean gyre model with parameters `paramete
 function tracer_advection end
 
 """
+    $(FUNCTIONNAME)(parameters, grid)
+
+Construct free surface scheme for ocean gyre model with grid `grid` and parameters `parameters`.
+"""
+function free_surface(::AbstractParameters, grid::AbstractGrid)
+    Oceananigans.Models.HydrostaticFreeSurfaceModels.default_free_surface(grid)
+end
+
+"""
 Set up ocean gyre model with parameters `parameters` on grid with architecture `architecture`.
 
 $(SIGNATURES)
 """
 function setup_model(parameters::AbstractParameters; architecture=CPU())
+    grid_ = grid(parameters, architecture)
     HydrostaticFreeSurfaceModel(
-        grid(parameters, architecture);
+        grid_;
         momentum_advection=momentum_advection(parameters),
         tracer_advection=tracer_advection(parameters),
         coriolis=coriolis(parameters),
@@ -90,5 +100,6 @@ function setup_model(parameters::AbstractParameters; architecture=CPU())
         boundary_conditions=boundary_conditions(parameters),
         forcing=forcing(parameters),
         tracers=tracers(parameters),
+        free_surface=free_surface(parameters, grid_),
     )
 end
