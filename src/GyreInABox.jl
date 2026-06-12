@@ -46,6 +46,7 @@ module GyreInABox
 
 using DocStringExtensions
 using Oceananigans
+using Oceananigans.DistributedComputations
 using Oceananigans.Grids
 using Oceananigans.Units
 using SeawaterPolynomials: TEOS10EquationOfState
