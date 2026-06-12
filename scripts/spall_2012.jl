@@ -50,6 +50,10 @@ function parse_commandline()
         "--mpi"
             help = "Use MPI to distribute computations"
             action = :store_true
+        "--ranks-along-x"
+            help = "Number of ranks to distribute x dimension of grid along if using MPI"
+            arg_type = Int
+            default = 1
         "--use-eddy-closure"
             help = "Use a dynamic Smagorinsky eddy closure"
             action = :store_true
@@ -69,7 +73,9 @@ function main()
     architecture = args["cpu"] ? CPU() : GPU()
 
     if args["mpi"]
-        architecture = Distributed(architecture)
+        partition = Partition(x=args["ranks-along-x"], y=Equal())
+        @onrank 0 @info partition
+        architecture = Distributed(architecture; partition)
     end
 
     output_interval = args["output-interval-days"] * 1day
