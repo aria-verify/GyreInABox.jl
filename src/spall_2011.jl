@@ -20,7 +20,7 @@ Real-valued parameters of model controlling initial and boundary conditions.
 
 $(TYPEDFIELDS)
 """
-@kwdef struct Spall2011Parameters{T} <: AbstractParameters{T}
+@kwdef struct Spall2011Parameters{T, S} <: AbstractParameters{T}
     "Grid dimensions in x, y and depth"
     grid_size::NTuple{3,Int} = (200, 400, 20)
     "Dimensions of grid halo region in x, y and depth"
@@ -97,6 +97,10 @@ $(TYPEDFIELDS)
     surface_wind_forcing_ramp_up_timescale::T = 10day
     "Order of WENO advection schemes for momentum and tracers"
     advection_order::Int = 5
+    "Split explicit free surface CFL target if adaptive substepping to be used"
+    split_explicit_free_surface_cfl::T = 0.7
+    "Split explicit free surface number of steps if fixed substepping to be used"
+    split_explicit_free_surface_substeps::S = nothing 
 end
 
 function zonal_surface_wind_stress(x, y, t, parameters::Spall2011Parameters)
@@ -340,6 +344,14 @@ function momentum_advection(parameters::Spall2011Parameters)
 end
 function tracer_advection(parameters::Spall2011Parameters)
     Oceananigans.WENO(; order=parameters.advection_order)
+end
+
+function free_surface(parameters::Spall2011Parameters{<:Any, <:Nothing}, grid::AbstractGrid)
+    SplitExplicitFreeSurface(grid; cfl=parameters.split_explicit_free_surface_cfl)
+end
+
+function free_surface(parameters::Spall2011Parameters{<:Any, <:Integer}, grid::AbstractGrid)
+    SplitExplicitFreeSurface(grid; substeps=parameters.split_explicit_free_surface_substeps)
 end
 
 function initialize!(model::Oceananigans.AbstractModel, parameters::Spall2011Parameters)
