@@ -51,7 +51,7 @@ function add_progress_message_callback!(
         ("max(|$(variable)|) = %.2e $(unit(variable))" for variable in keys(fields)), ", "
     )
     message_string_format = Printf.Format(iteration_format_string * variables_format_string)
-    progress_message(sim) = @onrank 0 @info(
+    progress_message(sim) = @info(
         Printf.format(
             message_string_format,
             iteration(sim),
