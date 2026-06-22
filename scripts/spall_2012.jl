@@ -57,6 +57,9 @@ function parse_commandline()
         "--use-eddy-closure"
             help = "Use a dynamic Smagorinsky eddy closure"
             action = :store_true
+        "--pickup-checkpoint", "-P"
+            help = "Path to checkpoint to restore simulation state from at initialisation"
+            arg_type = String
     end
 
     return parse_args(s)
@@ -121,7 +124,8 @@ function main()
             AverageKineticEnergy(region_mask=mask),
             HorizontallyAveragedTracers(region_mask=mask),
         ),
-        progress_message_interval=1000
+        progress_message_interval=1000,
+        pickup_checkpoint=args["pickup-checkpoint"],
     )
 
     @onrank 0 begin

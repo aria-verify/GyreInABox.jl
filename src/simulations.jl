@@ -12,7 +12,7 @@ temporal discretization and outputs to record.
 
 $(TYPEDFIELDS)
 """
-@kwdef struct SimulationConfiguration{T,A}
+@kwdef struct SimulationConfiguration{T,A,P}
     "Computational architecture to run simulation on"
     architecture::A = Oceananigans.CPU()
     "Time to simulate for / s"
@@ -37,6 +37,8 @@ $(TYPEDFIELDS)
     )
     "Whether to checkpoint simulation at end"
     checkpoint_at_end::Bool = true
+    "Optional path to checkpoint file to pickup initial simulation state from"
+    pickup_checkpoint::P = nothing
 end
 
 """
@@ -109,7 +111,8 @@ function run_simulation(
     model = setup_model(parameters; architecture=configuration.architecture)
     initialize!(model, parameters)
     simulation = setup_simulation(model, configuration)
-    run!(simulation)
+    pickup = !isnothing(configuration.pickup_checkpoint) && configuration.pickup_checkpoint
+    run!(simulation; pickup)
     if configuration.checkpoint_at_end
         Oceananigans.checkpoint(
             simulation; filepath="$(configuration.output_filename)_checkpoint.jld2"
