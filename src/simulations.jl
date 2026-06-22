@@ -12,7 +12,7 @@ temporal discretization and outputs to record.
 
 $(TYPEDFIELDS)
 """
-@kwdef struct SimulationConfiguration{T,A}
+@kwdef struct SimulationConfiguration{T,A,P}
     "Computational architecture to run simulation on"
     architecture::A = Oceananigans.CPU()
     "Time to simulate for / s"
@@ -35,6 +35,10 @@ $(TYPEDFIELDS)
     output_types::Tuple = (
         HorizontalSlice(), FreeSurfaceFields(), BarotropicStreamFunction()
     )
+    "Whether to checkpoint simulation at end"
+    checkpoint_at_end::Bool = true
+    "Optional path to checkpoint file to pickup initial simulation state from"
+    pickup_checkpoint::P = nothing
 end
 
 """
@@ -107,7 +111,13 @@ function run_simulation(
     model = setup_model(parameters; architecture=configuration.architecture)
     initialize!(model, parameters)
     simulation = setup_simulation(model, configuration)
-    run!(simulation)
+    pickup = !isnothing(configuration.pickup_checkpoint) && configuration.pickup_checkpoint
+    run!(simulation; pickup)
+    if configuration.checkpoint_at_end
+        Oceananigans.checkpoint(
+            simulation; filepath="$(configuration.output_filename)_checkpoint.jld2"
+        )
+    end
 end
 
 """
@@ -126,11 +136,17 @@ function plot_outputs(
     plot_output_type::AbstractPlotOutput,
     grid::AbstractGrid,
     configuration::SimulationConfiguration;
-    kwargs...
+    kwargs...,
 )
     for output_type in configuration.output_types
         if is_compatible(plot_output_type, output_type)
-            plot_output(plot_output_type, configuration.output_filename, output_type, grid; kwargs...)
+            plot_output(
+                plot_output_type,
+                configuration.output_filename,
+                output_type,
+                grid;
+                kwargs...,
+            )
         end
     end
 end
@@ -139,7 +155,7 @@ function plot_outputs(
     plot_output_type::AbstractPlotOutput,
     parameters::AbstractParameters,
     configuration::SimulationConfiguration;
-    kwargs...
+    kwargs...,
 )
     plot_outputs(plot_output_type, grid(parameters, CPU()), configuration; kwargs...)
 end
