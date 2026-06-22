@@ -35,6 +35,8 @@ $(TYPEDFIELDS)
     output_types::Tuple = (
         HorizontalSlice(), FreeSurfaceFields(), BarotropicStreamFunction()
     )
+    "Whether to checkpoint simulation at end"
+    checkpoint_at_end::Bool = true
 end
 
 """
@@ -108,6 +110,11 @@ function run_simulation(
     initialize!(model, parameters)
     simulation = setup_simulation(model, configuration)
     run!(simulation)
+    if configuration.checkpoint_at_end
+        Oceananigans.checkpoint(
+            simulation; filepath="$(configuration.output_filename)_checkpoint.jld2"
+        )
+    end
 end
 
 """
