@@ -136,11 +136,17 @@ function plot_outputs(
     plot_output_type::AbstractPlotOutput,
     grid::AbstractGrid,
     configuration::SimulationConfiguration;
-    kwargs...
+    kwargs...,
 )
     for output_type in configuration.output_types
         if is_compatible(plot_output_type, output_type)
-            plot_output(plot_output_type, configuration.output_filename, output_type, grid; kwargs...)
+            plot_output(
+                plot_output_type,
+                configuration.output_filename,
+                output_type,
+                grid;
+                kwargs...,
+            )
         end
     end
 end
@@ -149,7 +155,7 @@ function plot_outputs(
     plot_output_type::AbstractPlotOutput,
     parameters::AbstractParameters,
     configuration::SimulationConfiguration;
-    kwargs...
+    kwargs...,
 )
     plot_outputs(plot_output_type, grid(parameters, CPU()), configuration; kwargs...)
 end
