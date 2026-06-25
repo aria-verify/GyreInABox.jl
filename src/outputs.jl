@@ -1221,7 +1221,7 @@ function plot_output(
     backend::Union{InMemory,OnDisk}=InMemory(),
     times::Union{AbstractVector,Nothing}=nothing,
 )
-    filepath = output_filename(output_filename_stem, model_output)
+    filepath = output_filename(output_filename_stem, model_output, ".jld2")
 
     field_variables = jldopen(filepath, "r") do f
         filter!(k -> k != "t" && k ∉ exclude_variables, keys(f["timeseries"]))
