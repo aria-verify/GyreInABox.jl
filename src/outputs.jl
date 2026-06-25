@@ -482,14 +482,21 @@ function outputs(
         TS,E,A,<:Union{ImplicitFreeSurface,ExplicitFreeSurface}
     },
 ) where {TS,E,A}
-    (; η=model.free_surface.displacement)
+    # Free surface displacement currently needs to be named displacement
+    # due to special handling of singleton dimensions of this field only
+    # when it is named displacement
+    # https://github.com/CliMA/Oceananigans.jl/issues/5195
+    (; displacement=model.free_surface.displacement)
 end
 
 function outputs(
     ::FreeSurfaceFields,
     model::HydrostaticFreeSurfaceModel{TS,E,A,<:SplitExplicitFreeSurface},
 ) where {TS,E,A}
-    merge((; η=model.free_surface.displacement), model.free_surface.barotropic_velocities)
+    merge(
+        (; displacement=model.free_surface.displacement),
+        model.free_surface.barotropic_velocities,
+    )
 end
 
 """
@@ -805,8 +812,8 @@ const DEFAULT_VARIABLE_PLOT_CONFIGURATIONS = Dict{String,VariablePlotConfigurati
         :amp,
         AutoVariableLimits(; symmetrize=false, extrema_scale_factor=0.5),
     ),
-    "η" => VariablePlotConfiguration(
-        "Free surface height η", "m", :balance, AutoVariableLimits()
+    "displacement" => VariablePlotConfiguration(
+        "Free surface dispalcement", "m", :balance, AutoVariableLimits()
     ),
     "U" => VariablePlotConfiguration(
         "Barotropic zonal velocity U", "m² s⁻¹", :balance, AutoVariableLimits()
