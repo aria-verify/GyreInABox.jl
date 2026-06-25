@@ -123,7 +123,8 @@ function main()
         maximum_timestep=60minute,
         wizard_max_change=1.1,
         wizard_update_interval=10,
-        output_filename=joinpath(run_directory, "spall_2012_gyre_model"),
+        output_directory=run_directory,
+        output_filename_stem="spall_2012_gyre_model",
         output_types=(
             HorizontalSlice(schedule=TimeInterval(output_interval)),
             HorizontalSlice(depth=parameters.bottom_depth + parameters.sill_height, schedule=TimeInterval(output_interval)),

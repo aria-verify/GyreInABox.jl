@@ -21,8 +21,10 @@ $(TYPEDFIELDS)
     initial_timestep::T = 10minute
     "Maximum time step to use in time step adaptation / s"
     maximum_timestep::T = 30minute
+    "Directory to write output files to"
+    output_directory::String = "."
     "Stem of output file names"
-    output_filename::String = "gyre_model"
+    output_filename_stem::String = "gyre_model"
     "Iteration interval between progress messages"
     progress_message_interval::Int = 40
     "Target (advective) CFL number for time stepping wizard"
@@ -98,7 +100,8 @@ function setup_simulation(
     add_output_writers!(
         simulation,
         configuration.output_types,
-        configuration.output_filename,
+        configuration.output_directory,
+        configuration.output_filename_stem,
         configuration.output_writer_type,
     )
     simulation
@@ -120,7 +123,7 @@ function run_simulation(
     run!(simulation; pickup)
     if configuration.checkpoint_at_end
         Oceananigans.checkpoint(
-            simulation; filepath="$(configuration.output_filename)_checkpoint.jld2"
+            simulation; filepath="$(configuration.output_filename_stem)_checkpoint.jld2"
         )
     end
 end
@@ -147,7 +150,8 @@ function plot_outputs(
         if is_compatible(plot_output_type, output_type)
             plot_output(
                 plot_output_type,
-                configuration.output_filename,
+                configuration.output_directory,
+                configuration.output_filename_stem,
                 output_type,
                 grid;
                 kwargs...,
