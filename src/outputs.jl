@@ -587,11 +587,28 @@ function output_filename(stem::String, label::Symbol, extension::String)
     "$(stem)_$(label).$(extension)"
 end
 
+function output_filename(stem::String, label::Symbol, extension::Nothing)
+    "$(stem)_$(label)"
+end
+
 function output_filename(
-    stem::String, output::AbstractModelOutput, extension::String="jld2"
+    stem::String, output::AbstractModelOutput, extension::Union{String,Nothing}=nothing
 )
     output_filename(stem, label(output), extension)
 end
+
+"""
+    $(FUNCTIONNAME)(output_writer_type)
+
+File extension to use with `output_writer_type`.
+    
+$(TYPEDSIGNATURES)
+"""
+function extension end
+
+extension(::Type{JLD2Writer}) = "jld2"
+extension(::Type{NetCDFWriter}) = "nc"
+extension(::Type{ZarrWriter}) = "zarr"
 
 """
     $(FUNCTIONNAME)(output, grid)
@@ -832,7 +849,10 @@ output filenames with stem `output_filename_stem`
 $(SIGNATURES)
 """
 function add_output_writers!(
-    simulation::Oceananigans.Simulation, output_types::Tuple, output_filename_stem::String
+    simulation::Oceananigans.Simulation,
+    output_types::Tuple,
+    output_filename_stem::String,
+    output_writer_type::Type{<:Oceananigans.AbstractOutputWriter},
 )
     model = simulation.model
     # Create a grid on CPU if not already to avoid issues with computing output field
@@ -842,14 +862,16 @@ function add_output_writers!(
     )
 
     for output in output_types
-        simulation.output_writers[label(output)] = JLD2Writer(
+        simulation.output_writers[label(output)] = output_writer_type(
             model,
             outputs(output, model);
-            filename=output_filename(output_filename_stem, output),
+            filename=output_filename(
+                output_filename_stem, output, extension(output_writer_type)
+            ),
             indices=indices(output, grid),
             schedule=schedule(output),
             overwrite_existing=true,
-            with_halos=true,
+            with_halos=false,
         )
     end
 

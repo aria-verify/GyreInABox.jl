@@ -12,7 +12,7 @@ temporal discretization and outputs to record.
 
 $(TYPEDFIELDS)
 """
-@kwdef struct SimulationConfiguration{T,A,P}
+@kwdef struct SimulationConfiguration{T,A,P,W}
     "Computational architecture to run simulation on"
     architecture::A = Oceananigans.CPU()
     "Time to simulate for / s"
@@ -39,6 +39,8 @@ $(TYPEDFIELDS)
     checkpoint_at_end::Bool = true
     "Optional path to checkpoint file to pickup initial simulation state from"
     pickup_checkpoint::P = nothing
+    "Output writer type"
+    output_writer_type::W = JLD2Writer
 end
 
 """
@@ -94,7 +96,10 @@ function setup_simulation(
     )
     add_progress_message_callback!(simulation, configuration)
     add_output_writers!(
-        simulation, configuration.output_types, configuration.output_filename
+        simulation,
+        configuration.output_types,
+        configuration.output_filename,
+        configuration.output_writer_type,
     )
     simulation
 end
