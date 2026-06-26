@@ -1251,7 +1251,7 @@ function plot_output(
     times::Union{AbstractVector,Nothing}=nothing,
 )
     filepath = joinpath(
-        output_directory, output_filename(output_filename_stem, model_output, ".jld2")
+        output_directory, output_filename(output_filename_stem, model_output, "jld2")
     )
 
     field_variables = jldopen(filepath, "r") do f
