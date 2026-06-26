@@ -482,14 +482,21 @@ function outputs(
         TS,E,A,<:Union{ImplicitFreeSurface,ExplicitFreeSurface}
     },
 ) where {TS,E,A}
-    (; η=model.free_surface.displacement)
+    # Free surface displacement currently needs to be named displacement
+    # due to special handling of singleton dimensions of this field only
+    # when it is named displacement
+    # https://github.com/CliMA/Oceananigans.jl/issues/5195
+    (; displacement=model.free_surface.displacement)
 end
 
 function outputs(
     ::FreeSurfaceFields,
     model::HydrostaticFreeSurfaceModel{TS,E,A,<:SplitExplicitFreeSurface},
 ) where {TS,E,A}
-    merge((; η=model.free_surface.displacement), model.free_surface.barotropic_velocities)
+    merge(
+        (; displacement=model.free_surface.displacement),
+        model.free_surface.barotropic_velocities,
+    )
 end
 
 """
@@ -587,11 +594,28 @@ function output_filename(stem::String, label::Symbol, extension::String)
     "$(stem)_$(label).$(extension)"
 end
 
+function output_filename(stem::String, label::Symbol, extension::Nothing)
+    "$(stem)_$(label)"
+end
+
 function output_filename(
-    stem::String, output::AbstractModelOutput, extension::String="jld2"
+    stem::String, output::AbstractModelOutput, extension::Union{String,Nothing}=nothing
 )
     output_filename(stem, label(output), extension)
 end
+
+"""
+    $(FUNCTIONNAME)(output_writer_type)
+
+File extension to use with `output_writer_type`.
+    
+$(TYPEDSIGNATURES)
+"""
+function extension end
+
+extension(::Type{JLD2Writer}) = "jld2"
+extension(::Type{NetCDFWriter}) = "nc"
+extension(::Type{ZarrWriter}) = "zarr"
 
 """
     $(FUNCTIONNAME)(output, grid)
@@ -788,8 +812,8 @@ const DEFAULT_VARIABLE_PLOT_CONFIGURATIONS = Dict{String,VariablePlotConfigurati
         :amp,
         AutoVariableLimits(; symmetrize=false, extrema_scale_factor=0.5),
     ),
-    "η" => VariablePlotConfiguration(
-        "Free surface height η", "m", :balance, AutoVariableLimits()
+    "displacement" => VariablePlotConfiguration(
+        "Free surface dispalcement", "m", :balance, AutoVariableLimits()
     ),
     "U" => VariablePlotConfiguration(
         "Barotropic zonal velocity U", "m² s⁻¹", :balance, AutoVariableLimits()
@@ -827,12 +851,17 @@ unit(variable::Symbol) = unit(string(variable))
 
 """
 Register output writers for output types in `output_types` in `simulation` using
-output filenames with stem `output_filename_stem`
+output filenames with directory `output_directory` and stem `output_filename_stem`
+and using output format associated `output_writer_type`.
 
 $(SIGNATURES)
 """
 function add_output_writers!(
-    simulation::Oceananigans.Simulation, output_types::Tuple, output_filename_stem::String
+    simulation::Oceananigans.Simulation,
+    output_types::Tuple,
+    output_directory::String,
+    output_filename_stem::String,
+    output_writer_type::Type{<:Oceananigans.AbstractOutputWriter},
 )
     model = simulation.model
     # Create a grid on CPU if not already to avoid issues with computing output field
@@ -840,16 +869,19 @@ function add_output_writers!(
     grid = (
         isa(model.grid.architecture, CPU) ? model.grid : on_architecture(CPU(), model.grid)
     )
-
     for output in output_types
-        simulation.output_writers[label(output)] = JLD2Writer(
+        output_filepath = joinpath(
+            output_directory,
+            output_filename(output_filename_stem, output, extension(output_writer_type))
+        )
+        simulation.output_writers[label(output)] = output_writer_type(
             model,
             outputs(output, model);
-            filename=output_filename(output_filename_stem, output),
+            filename=output_filepath,
             indices=indices(output, grid),
             schedule=schedule(output),
             overwrite_existing=true,
-            with_halos=true,
+            with_halos=false,
         )
     end
 
@@ -972,12 +1004,14 @@ function get_title end
         fig,
         times,
         time_index,
+        output_directory,
         output_filename_stem,
         model_output
     )
 
 Saves plot file output for `plot_output` and `model_output` visualized on
-Makie figure `fig` with model outputs recorded with `output_filename_step`, optionally
+Makie figure `fig` with model outputs recorded to a file in directory 
+`output_directory` and with stem `output_filename_stem`, optionally
 using simulation times `times` and observable `time_index`.
 
 $(TYPEDSIGNATURES)
@@ -1028,12 +1062,15 @@ function save_output(
     fig,
     times,
     time_index,
+    output_directory,
     output_filename_stem,
     model_output,
 )
     frames = 1:plot_output.frame_step:length(times)
 
-    output_file = output_filename(output_filename_stem, model_output, "mp4")
+    output_file = joinpath(
+        output_directory, output_filename(output_filename_stem, model_output, "mp4")
+    )
     @info "Recording an animation of $(label(model_output)) to $(output_file)..."
 
     CairoMakie.record(fig, output_file, frames; framerate=plot_output.frame_rate) do i
@@ -1079,9 +1116,20 @@ function get_title(::TemporalAveragePlotOutput, time_index, times)
 end
 
 function save_output(
-    ::TemporalAveragePlotOutput, fig, times, time_index, output_filename_stem, model_output
+    ::TemporalAveragePlotOutput,
+    fig,
+    times,
+    time_index,
+    output_directory,
+    output_filename_stem,
+    model_output,
 )
-    save(output_filename(output_filename_stem, model_output, "svg"), fig)
+    save(
+        joinpath(
+            output_directory, output_filename(output_filename_stem, model_output, "svg")
+        ),
+        fig,
+    )
 end
 
 is_compatible(::TemporalAveragePlotOutput, ::AbstractModelOutput) = true
@@ -1141,9 +1189,20 @@ end
 get_title(::TimeSeriesPlotOutput, time_index, times) = nothing
 
 function save_output(
-    ::TimeSeriesPlotOutput, fig, times, time_index, output_filename_stem, model_output
+    ::TimeSeriesPlotOutput,
+    fig,
+    times,
+    time_index,
+    output_directory,
+    output_filename_stem,
+    model_output,
 )
-    save(output_filename(output_filename_stem, model_output, "svg"), fig)
+    save(
+        joinpath(
+            output_directory, output_filename(output_filename_stem, model_output, "svg")
+        ),
+        fig,
+    )
 end
 
 is_compatible(::TimeSeriesPlotOutput, ::AbstractModelOutput) = false
@@ -1156,16 +1215,14 @@ $(SIGNATURES)
 
 ## Details
 
-Generates and record to file with filename stem `output_filename_stem` an animation of
-model outputs for output type `model_output` and for a model grid `grid`. The simulation
-must have already been run for a model with this grid and with specified output type
-active.
+Generates and record to file in `output_directory` with filename stem `output_filename_stem`
+a plot of type `plot_output_type` for model outputs for output type `model_output` and for
+a model grid `grid`. The simulation must have already been run for a model with this grid
+and with specified output type active.
 
-Animation is recorded with a frame rate of `frame_rate` frames per second, with fields
-arranged on a grid with a maximum of `max_columns` columns, with the axis for each
-field heatmap of size `(axis_width, axis_height)` in pixels and a further `title_height`
-pixels allowed at the top of the figure for a title showing the simulation time. Each
-frame of animation steps `frame_step` time indices through field time series.
+Fields are arranged on a grid with a maximum of `max_columns` columns, with the axis for
+each field heatmap of size `(axis_width, axis_height)` in pixels and a further `title_height`
+pixels allowed at the top of the figure for a title.
 
 By default the plot configurations for each field variable are taken from the
 `GyreInABox.DEFAULT_VARIABLE_PLOT_CONFIGURATIONS` dictionary but these can be overridden
@@ -1180,6 +1237,7 @@ is to use all recorded times.
 """
 function plot_output(
     plot_output_type::AbstractPlotOutput,
+    output_directory::String,
     output_filename_stem::String,
     model_output::AbstractModelOutput,
     grid::AbstractGrid;
@@ -1192,7 +1250,9 @@ function plot_output(
     backend::Union{InMemory,OnDisk}=InMemory(),
     times::Union{AbstractVector,Nothing}=nothing,
 )
-    filepath = output_filename(output_filename_stem, model_output)
+    filepath = joinpath(
+        output_directory, output_filename(output_filename_stem, model_output, "jld2")
+    )
 
     field_variables = jldopen(filepath, "r") do f
         filter!(k -> k != "t" && k ∉ exclude_variables, keys(f["timeseries"]))
@@ -1239,7 +1299,13 @@ function plot_output(
     resize_to_layout!(fig)
 
     save_output(
-        plot_output_type, fig, times, time_index, output_filename_stem, model_output
+        plot_output_type,
+        fig,
+        times,
+        time_index,
+        output_directory,
+        output_filename_stem,
+        model_output,
     )
 
     fig

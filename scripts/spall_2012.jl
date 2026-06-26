@@ -6,7 +6,15 @@ using Oceananigans.DistributedComputations
 using Oceananigans.Units
 using CUDA
 using MPI
+using NCDatasets
+using Zarr
 using Dates: now, format
+
+const _OUTPUT_WRITER_TYPES = Dict{String, Type}(
+    "JLD2" => JLD2Writer,
+    "NetCDF" => NetCDFWriter,
+    "Zarr" => ZarrWriter,
+)
 
 function parse_commandline()
     s = ArgParseSettings()
@@ -60,6 +68,11 @@ function parse_commandline()
         "--pickup-checkpoint", "-P"
             help = "Path to checkpoint to restore simulation state from at initialisation"
             arg_type = String
+        "--output-format", "-F"
+            help = "Format to use for writing model outputs - one of JLD2, NetCDF or Zarr"
+            arg_type = String
+            default = "JLD2"
+            range_tester = x -> x ∈ keys(_OUTPUT_WRITER_TYPES)
     end
 
     return parse_args(s)
@@ -110,7 +123,8 @@ function main()
         maximum_timestep=60minute,
         wizard_max_change=1.1,
         wizard_update_interval=10,
-        output_filename=joinpath(run_directory, "spall_2012_gyre_model"),
+        output_directory=run_directory,
+        output_filename_stem="spall_2012_gyre_model",
         output_types=(
             HorizontalSlice(schedule=TimeInterval(output_interval)),
             HorizontalSlice(depth=parameters.bottom_depth + parameters.sill_height, schedule=TimeInterval(output_interval)),
@@ -126,6 +140,7 @@ function main()
         ),
         progress_message_interval=1000,
         pickup_checkpoint=args["pickup-checkpoint"],
+        output_writer_type=_OUTPUT_WRITER_TYPES[args["output-format"]],
     )
 
     @onrank 0 begin

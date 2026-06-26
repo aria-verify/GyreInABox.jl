@@ -62,13 +62,13 @@ function main()
     if !isnothing(outputs[HorizontallyAveragedTracers])
         averaged_tracers_output = outputs[HorizontallyAveragedTracers]
         S_timeseries = FieldTimeSeries(
-            "$(args["run-output-path"])/$(GyreInABox.output_filename(configuration.output_filename, averaged_tracers_output))",
+            "$(args["run-output-path"])/$(GyreInABox.output_filename(configuration.output_filename_stem, averaged_tracers_output))",
             "S";
             backend=InMemory(),
             times=plot_times,
         )
         T_timeseries = FieldTimeSeries(
-            "$(args["run-output-path"])/$(GyreInABox.output_filename(configuration.output_filename, averaged_tracers_output))",
+            "$(args["run-output-path"])/$(GyreInABox.output_filename(configuration.output_filename_stem, averaged_tracers_output))",
             "T";
             backend=InMemory(),
             times=plot_times,
@@ -123,7 +123,7 @@ function main()
         if !isnothing(outputs[output_type])
             output = outputs[output_type]
             timeseries = FieldTimeSeries(
-                "$(args["run-output-path"])/$(GyreInABox.output_filename(configuration.output_filename, output))",
+                "$(args["run-output-path"])/$(GyreInABox.output_filename(configuration.output_filename_stem, output))",
                 field_name;
                 backend=InMemory(),
                 times=plot_times,
@@ -156,7 +156,7 @@ function main()
 
     resize_to_layout!(fig)
 
-    output_path = "$(args["run-output-path"])/$(configuration.output_filename)_$(args["output-filename-suffix"]).svg"
+    output_path = "$(args["run-output-path"])/$(configuration.output_filename_stem)_$(args["output-filename-suffix"]).svg"
 
     @info "Writing output figure to $(output_path)"
     save(output_path, fig)

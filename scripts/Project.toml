@@ -5,7 +5,9 @@ CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 GyreInABox = "d40f67ff-4a83-48da-8213-065d3ac3739e"
 JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
 MPI = "da04e1cc-30fd-572f-bb4f-1f8673147195"
+NCDatasets = "85f8d34a-cbdd-5861-8df4-14fed0d494ab"
 Oceananigans = "9e8cae18-63c1-5223-a75c-80ca9d6e9a09"
+Zarr = "0a941bbe-ad1d-11e8-39d9-ab76183a1d99"
 
 [sources]
 GyreInABox = {path = ".."}
@@ -13,3 +15,6 @@ GyreInABox = {path = ".."}
 [compat]
 ArgParse = "1.2.0"
 CUDA = "5.11.0"
+MPI = "0.20.0"
+NCDatasets = "0.14.15"
+Zarr = "0.10.0"
