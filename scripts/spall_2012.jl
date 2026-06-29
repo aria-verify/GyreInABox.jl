@@ -107,13 +107,11 @@ function main()
 
     mask = GyreInABox.northern_basin_mask(parameters)
 
-    timestamp = format(now(), "yyyy-mm-dd_HH-MM-SS")
-
-    run_directory = joinpath(args["output-directory"], "$timestamp-run")
+    output_directory = args["output-directory"]
 
     @onrank 0 begin
-        mkdir(run_directory)
-        @info "Writing outputs to $run_directory"
+        mkpath(output_directory)
+        @info "Writing outputs to $output_directory"
     end
 
     configuration = SimulationConfiguration(
@@ -123,7 +121,7 @@ function main()
         maximum_timestep=60minute,
         wizard_max_change=1.1,
         wizard_update_interval=10,
-        output_directory=run_directory,
+        output_directory=output_directory,
         output_filename_stem="spall_2012_gyre_model",
         output_types=(
             HorizontalSlice(schedule=TimeInterval(output_interval)),
@@ -144,8 +142,8 @@ function main()
     )
 
     @onrank 0 begin
-        jldsave(joinpath(run_directory, "parameters.jld2"); parameters)
-        jldsave(joinpath(run_directory, "configuration.jld2"); configuration)
+        jldsave(joinpath(output_directory, "parameters.jld2"); parameters)
+        jldsave(joinpath(output_directory, "configuration.jld2"); configuration)
     end
 
     run_simulation(parameters, configuration)
