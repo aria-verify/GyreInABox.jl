@@ -431,7 +431,7 @@ function indices(output::HorizontalSlice, grid::AbstractUnderlyingGrid)
     (:, :, clamp(searchsortedfirst(znodes(grid, Face()), output.depth), 1:grid.Nz))
 end
 
-function indices(output::XDepthSlice, grid::LatitudeLongitudeGrid)
+function indices(output::Union{XDepthSlice,MOCStrength,MeridionalHeatTransport}, grid::LatitudeLongitudeGrid)
     (:, clamp(searchsortedfirst(φnodes(grid, Face()), output.y_or_latitude), 1:grid.Ny), :)
 end
 
@@ -439,22 +439,12 @@ function indices(output::YDepthSlice, grid::LatitudeLongitudeGrid)
     (clamp(searchsortedfirst(λnodes(grid, Face()), output.x_or_longitude), 1:grid.Nx), :, :)
 end
 
-function indices(output::XDepthSlice, grid::RectilinearGrid)
+function indices(output::Union{XDepthSlice,MOCStrength,MeridionalHeatTransport}, grid::RectilinearGrid)
     (:, clamp(searchsortedfirst(ynodes(grid, Face()), output.y_or_latitude), 1:grid.Ny), :)
 end
 
 function indices(output::YDepthSlice, grid::RectilinearGrid)
     (clamp(searchsortedfirst(xnodes(grid, Face()), output.x_or_longitude), 1:grid.Nx), :, :)
-end
-
-function indices(
-    output::Union{MOCStrength,MeridionalHeatTransport}, grid::LatitudeLongitudeGrid
-)
-    (:, clamp(searchsortedfirst(φnodes(grid, Face()), output.y_or_latitude), 1:grid.Ny), :)
-end
-
-function indices(output::Union{MOCStrength,MeridionalHeatTransport}, grid::RectilinearGrid)
-    (:, clamp(searchsortedfirst(ynodes(grid, Face()), output.y_or_latitude), 1:grid.Ny), :)
 end
 
 """
