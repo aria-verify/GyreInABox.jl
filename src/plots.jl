@@ -347,7 +347,7 @@ function plot_output(
     axis_height::Int=480,
     title_height::Int=40,
     exclude_variables::Tuple=(),
-    variable_limits::Union{NamedTuple,Nothing}=nothing,
+    variable_limits::NamedTuple=(;),
     backend::Union{InMemory,OnDisk}=InMemory(),
     times::Union{AbstractVector,Nothing}=nothing,
 )
@@ -356,12 +356,12 @@ function plot_output(
         output_filename(output_filename_stem, model_output, output_file_extension),
     )
 
-    variables = filter(v -> short_name(variable) ∉ exclude_variables, output.variables)
+    variables = filter(v -> short_name(v) ∉ exclude_variables, model_output.variables)
 
     field_data = Dict{String,FieldTimeSeries}(
         short_name(variable) =>
             FieldTimeSeries(filepath, short_name(variable); backend, times) for
-        variable in variable
+        variable in variables
     )
 
     times = first(values(field_data)).times
