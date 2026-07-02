@@ -28,7 +28,8 @@ $(TYPEDFIELDS)
     "Iteration interval between progress messages"
     progress_message_interval::Int = 40
     "Model variables to show statistics of in progress messages"
-    progress_message_variables::Vector{<:AbstractModelVariable} = VELOCITY_AND_TRACER_VARIABLES
+    progress_message_variables::Vector{<:AbstractModelVariable} =
+        VELOCITY_AND_TRACER_VARIABLES
     "Target (advective) CFL number for time stepping wizard"
     target_cfl::T = 0.2
     "Update (iteration) interval for time stepping wizard"
@@ -170,7 +171,7 @@ function run_simulation(
     if configuration.checkpoint_at_end
         filepath = joinpath(
             configuration.output_directory,
-            output_filename(configuration.output_filename_stem, "checkpoint", "jld2")
+            output_filename(configuration.output_filename_stem, "checkpoint", "jld2"),
         )
         Oceananigans.checkpoint(simulation; filepath)
     end
@@ -195,7 +196,10 @@ function plot_outputs(
     kwargs...,
 )
     for output_type in configuration.output_types
-        if is_compatible(plot_output_type, output_type)
+        if all(
+            is_compatible(plot_output_type, spatial_dimensions(v, output_type.processor))
+            for v in output_type.variables
+        )
             plot_output(
                 plot_output_type,
                 configuration.output_directory,
