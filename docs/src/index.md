@@ -109,7 +109,10 @@ using GyreInABox
 
 parameters = DoubleGyreParameters()
 configuration = SimulationConfiguration(
-    output_types=(XDepthSlice(; y_or_latitude=45.), HorizontalSlice()),
+    output_types=(
+        x_depth_slice_output(; y_or_latitude=45.),
+        horizontal_slice_output(; depth=0.)
+    ),
     progress_message_interval=400
 )
 run_simulation(parameters, configuration)
@@ -117,8 +120,8 @@ plot_outputs(AnimationPlotOutput(), parameters, configuration)
 nothing # hide
 ```
 
-![Example simulated output (longitude-depth slice)](gyre_model_x_depth_slice_at_y_45.0m_or_deg.mp4)
-![Example simulated output (horizontal slice)](gyre_model_horizontal_slice_at_depth_0.0m.mp4)
+![Example simulated output (longitude-depth slice)](gyre_model_spatial_slice_at_y_45.0_of_variables_u_v_w_S_T_at_time_interval_1day.mp4)
+![Example simulated output (horizontal slice)](gyre_model_spatial_slice_at_z_0.0_of_variables_u_v_w_S_T_at_time_interval_1day.mp4)
 
 ## API reference
 
