@@ -215,7 +215,12 @@ end
 
 function label(schedule::Oceananigans.Utils.AbstractSchedule)
     replace(
-        camel_to_snake_case(summary(schedule)), " " => "", "(" => "_", ")" => "", "," => "_"
+        camel_to_snake_case(summary(schedule)),
+        " " => "",
+        "(" => "_",
+        ")" => "",
+        "," => "_",
+        "=" => "_",
     )
 end
 
