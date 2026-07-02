@@ -241,7 +241,7 @@ function field(::MOCStreamFunction, model)
 end
 short_name(::MOCStreamFunction) = "Ψᴹ"
 standard_name(::MOCStreamFunction) = "ocean_meridional_overturning_streamfunction"
-long_name(::MOCStreamFunction) = "Meridional overturning circulation stream function"
+long_name(::MOCStreamFunction) = "MOC stream function"
 units(::MOCStreamFunction) = "sverdrup"
 function spatial_dimensions(::MOCStreamFunction)
     SpatialDimensions(
