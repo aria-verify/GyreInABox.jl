@@ -344,7 +344,7 @@ function plot_output(
     output_file_extension::String="jld2",
     max_columns::Int=3,
     axis_width::Int=640,
-    axis_height::Int=480,
+    axis_height::Int=640,
     title_height::Int=40,
     exclude_variables::Tuple=(),
     variable_limits::NamedTuple=(;),
@@ -382,6 +382,7 @@ function plot_output(
         axis = Axis(
             fig[row, col];
             title="$(long_name(variable)) / $(units(variable))",
+            titlegap=8.0,
             axis_kwargs...,
         )
         name = short_name(variable)
