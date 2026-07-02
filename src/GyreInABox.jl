@@ -56,14 +56,26 @@ using JLD2
 
 export DoubleGyreParameters, Spall2011Parameters
 export SimulationConfiguration
-export HorizontalSlice, XDepthSlice, YDepthSlice
-export DepthAveraged, FreeSurfaceFields, MOCStreamFunction, BarotropicStreamFunction
-export MOCStrength, MeridionalHeatTransport, HorizontallyAveragedTracers, AverageKineticEnergy
+export EastwardVelocity, NorthwardVelocity, UpwardVelocity
+export Salinity, Temperature
+export SpecificKineticEnergy, SpecificTurbulentKineticEnergy
+export EastwardBarotropicVelocity, NorthwardBarotropicVelocity, FreeSurfaceDisplacement
+export MOCStreamFunction, BarotropicStreamFunction
+export NorthwardHeatTransport
+export ModelOutput
+export horizontal_slice_output, x_depth_slice_output, y_depth_slice_output
+export depth_averaged_output, horizontally_averaged_output, spatially_averaged_output
+export free_surface_output, stream_functions_output
+export moc_strength_at_y_output, northward_heat_transport_at_y_output
 export setup_model, initialize!, setup_simulation
 export AnimationPlotOutput, TemporalAveragePlotOutput, TimeSeriesPlotOutput
 export run_simulation, plot_outputs
 
+include("variables.jl")
+include("dimensions.jl")
+include("processors.jl")
 include("outputs.jl")
+include("plots.jl")
 include("models.jl")
 include("simulations.jl")
 include("utils.jl")
