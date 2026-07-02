@@ -34,3 +34,24 @@ function smooth_step(d)
         1.
     end
 end
+
+"""
+$(TYPEDEF)
+
+Mask for horizontal circular region with center at `(x_center, y_center)`
+and radius `radius`.
+"""
+struct HorizontalCircularRegionMask{T}
+    x_center::T
+    y_center::T
+    radius::T
+end
+
+function (mask::HorizontalCircularRegionMask)(i, j, k, grid, field)
+    x, y, z = node(i, j, k, field)
+    (x - mask.x_center)^2 + (y - mask.y_center)^2 < mask.radius^2
+end
+
+function Base.summary(mask::HorizontalCircularRegionMask)
+    "circular_region_at_x_$(mask.x_center)_y_$(mask.y_center)_radius_$(mask.radius)"
+end
