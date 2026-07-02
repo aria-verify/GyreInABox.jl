@@ -122,9 +122,11 @@ function run_simulation(
     pickup = !isnothing(configuration.pickup_checkpoint) && configuration.pickup_checkpoint
     run!(simulation; pickup)
     if configuration.checkpoint_at_end
-        Oceananigans.checkpoint(
-            simulation; filepath="$(configuration.output_filename_stem)_checkpoint.jld2"
+        filepath = joinpath(
+            configuration.output_directory,
+            "$(configuration.output_filename_stem)_checkpoint.jld2",
         )
+        Oceananigans.checkpoint(simulation; filepath)
     end
 end
 
