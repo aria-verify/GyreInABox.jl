@@ -55,3 +55,10 @@ end
 function Base.summary(mask::HorizontalCircularRegionMask)
     "circular_region_at_x_$(mask.x_center)_y_$(mask.y_center)_radius_$(mask.radius)"
 end
+
+"""
+$(SIGNATURES)
+
+Convert string `s` in CamelCase to snake_case.
+"""
+camel_to_snake_case(s::String) = join(lowercase.(split(s, r"(?<=[a-z])(?=[A-Z])")), "_")
