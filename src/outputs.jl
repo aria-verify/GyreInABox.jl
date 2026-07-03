@@ -195,7 +195,7 @@ function northward_heat_transport_at_y_output(; y_or_latitude, schedule=DEFAULT_
     ModelOutput(
         [NorthwardHeatTransport()],
         schedule,
-        SpatialSliceProcessor(; x=SlicedSpatialDimension(y_or_latitude)),
+        SpatialSliceProcessor(; y=SlicedSpatialDimension(y_or_latitude)),
     )
 end
 
