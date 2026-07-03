@@ -1,6 +1,6 @@
 """
-Sigmoidal depth profile which smoothly varies from `f_top` at `z = 0` to `f_bottom` at
-`z = -depth` with length scale for smooth transition `ℓ` and offset for midpoint of
+Sigmoidal depth profile which smoothly varies from `f_top` at `z >> z_0` to `f_bottom` at
+`z << z_0` with length scale for smooth transition `ℓ` and offset for midpoint of
 smooth transition `z_0`.
 
 $(SIGNATURES)
@@ -12,7 +12,7 @@ end
 """
 Compute hyperbolically spaced grid face coordinate at index `k` for coordinate
 discretized into `size` cells from lower value `lower` to upper value `upper`
-with strething factor `stretching_factor`.
+with stretching factor `stretching_factor`.
 
 $(SIGNATURES)
 """
@@ -26,11 +26,39 @@ Smooth piecewise defined step function that is zero for negative `d`, one for `d
 and smoothly interpolates between these values for `0 ≤ d ≤ 1`.
 """
 function smooth_step(d)
-    if d < 0.
+    if d < 0.0
         0
     elseif d < 1
         3d^2 - 2d^3
     else
-        1.
+        1.0
     end
 end
+
+"""
+$(TYPEDEF)
+
+Mask for horizontal circular region with center at `(x_center, y_center)`
+and radius `radius`.
+"""
+struct HorizontalCircularRegionMask{T}
+    x_center::T
+    y_center::T
+    radius::T
+end
+
+function (mask::HorizontalCircularRegionMask)(i, j, k, grid, field)
+    x, y, z = node(i, j, k, field)
+    (x - mask.x_center)^2 + (y - mask.y_center)^2 < mask.radius^2
+end
+
+function Base.summary(mask::HorizontalCircularRegionMask)
+    "circular_region_at_x_$(mask.x_center)_y_$(mask.y_center)_radius_$(mask.radius)"
+end
+
+"""
+$(SIGNATURES)
+
+Convert string `s` in CamelCase to snake_case.
+"""
+camel_to_snake_case(s::String) = join(lowercase.(split(s, r"(?<=[a-z])(?=[A-Z])")), "_")

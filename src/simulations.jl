@@ -27,6 +27,9 @@ $(TYPEDFIELDS)
     output_filename_stem::String = "gyre_model"
     "Iteration interval between progress messages"
     progress_message_interval::Int = 40
+    "Model variables to show statistics of in progress messages"
+    progress_message_variables::Vector{<:AbstractModelVariable} =
+        VELOCITY_AND_TRACER_VARIABLES
     "Target (advective) CFL number for time stepping wizard"
     target_cfl::T = 0.2
     "Update (iteration) interval for time stepping wizard"
@@ -35,7 +38,7 @@ $(TYPEDFIELDS)
     wizard_max_change::T = 1.5
     "Output types to record during simulation"
     output_types::Tuple = (
-        HorizontalSlice(), FreeSurfaceFields(), BarotropicStreamFunction()
+        horizontal_slice_output(depth=0.0), free_surface_output(), stream_functions_output()
     )
     "Whether to checkpoint simulation at end"
     checkpoint_at_end::Bool = true
@@ -53,10 +56,10 @@ $(SIGNATURES)
 function add_progress_message_callback!(
     simulation::Oceananigans.Simulation, configuration::SimulationConfiguration
 )
-    fields = merge(simulation.model.velocities, simulation.model.tracers)
+    variables = configuration.progress_message_variables
     iteration_format_string = "Iteration: %04d, time: %s, Δt: %s, wall time: %s\n  "
     variables_format_string = join(
-        ("max(|$(variable)|) = %.2e $(unit(variable))" for variable in keys(fields)), ", "
+        ("max(|$(short_name(v))|) = %.2e $(units(v))" for v in variables), ", "
     )
     message_string_format = Printf.Format(iteration_format_string * variables_format_string)
     progress_message(sim) = @info(
@@ -66,7 +69,7 @@ function add_progress_message_callback!(
             prettytime(sim),
             prettytime(sim.Δt),
             prettytime(sim.run_wall_time),
-            (maximum(abs, field) for field in values(fields))...,
+            (maximum(abs, field(v, sim.model)) for v in variables)...,
         ),
     )
     add_callback!(
@@ -74,6 +77,50 @@ function add_progress_message_callback!(
         progress_message,
         IterationInterval(configuration.progress_message_interval),
     )
+    nothing
+end
+
+"""
+Register output writers for output types in `output_types` in `simulation` using
+output filenames with directory `output_directory` and stem `output_filename_stem`
+and using output format associated `output_writer_type`.
+
+$(SIGNATURES)
+"""
+function add_output_writers!(
+    simulation::Oceananigans.Simulation,
+    output_types::Tuple,
+    output_directory::String,
+    output_filename_stem::String,
+    output_writer_type::Type{<:Oceananigans.AbstractOutputWriter},
+)
+    model = simulation.model
+    # Create a grid on CPU if not already to avoid issues with computing output field
+    # indices from grid using scalar operations on GPU grids
+    grid = (
+        isa(model.grid.architecture, CPU) ? model.grid : on_architecture(CPU(), model.grid)
+    )
+    for output in output_types
+        kwargs = if output_writer_type == NetCDFWriter
+            (; output_attributes=output_attributes(output.variables))
+        else
+            (;)
+        end
+        simulation.output_writers[Symbol(label(output))] = output_writer_type(
+            model,
+            fields(output, model);
+            filename=output_filename(
+                output_filename_stem, output, extension(output_writer_type)
+            ),
+            dir=output_directory,
+            indices=indices(output, grid),
+            schedule=schedule(output),
+            overwrite_existing=true,
+            with_halos=false,
+            kwargs...,
+        )
+    end
+
     nothing
 end
 
@@ -122,9 +169,11 @@ function run_simulation(
     pickup = !isnothing(configuration.pickup_checkpoint) && configuration.pickup_checkpoint
     run!(simulation; pickup)
     if configuration.checkpoint_at_end
-        Oceananigans.checkpoint(
-            simulation; filepath="$(configuration.output_filename_stem)_checkpoint.jld2"
+        filepath = joinpath(
+            configuration.output_directory,
+            output_filename(configuration.output_filename_stem, "checkpoint", "jld2"),
         )
+        Oceananigans.checkpoint(simulation; filepath)
     end
 end
 
@@ -147,13 +196,17 @@ function plot_outputs(
     kwargs...,
 )
     for output_type in configuration.output_types
-        if is_compatible(plot_output_type, output_type)
+        if all(
+            is_compatible(plot_output_type, spatial_dimensions(v, output_type.processor))
+            for v in output_type.variables
+        )
             plot_output(
                 plot_output_type,
                 configuration.output_directory,
                 configuration.output_filename_stem,
                 output_type,
                 grid;
+                output_file_extension=extension(configuration.output_writer_type),
                 kwargs...,
             )
         end

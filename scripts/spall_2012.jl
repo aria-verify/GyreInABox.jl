@@ -10,10 +10,8 @@ using NCDatasets
 using Zarr
 using Dates: now, format
 
-const _OUTPUT_WRITER_TYPES = Dict{String, Type}(
-    "JLD2" => JLD2Writer,
-    "NetCDF" => NetCDFWriter,
-    "Zarr" => ZarrWriter,
+const _OUTPUT_WRITER_TYPES = Dict{String,Type}(
+    "JLD2" => JLD2Writer, "NetCDF" => NetCDFWriter, "Zarr" => ZarrWriter
 )
 
 function parse_commandline()
@@ -23,7 +21,7 @@ function parse_commandline()
         "--surface-temperature-restoring-strength", "-R"
             help = "Surface temperature restoring strength / W m⁻² K⁻¹"
             arg_type = Float64
-            default = 20.
+            default = 20.0
         "--northern-basin-surface-evaporation", "-E"
             help = "Surface net evaporation-precipitation in northern basin above sill / m s⁻¹"
             arg_type = Float64
@@ -31,15 +29,15 @@ function parse_commandline()
         "--sill-height", "-H"
             help = "Sill height / m"
             arg_type = Float64
-            default = 1000.
+            default = 1000.0
         "--simulation-years", "-Y"
             help = "Number of simulated year to run for"
             arg_type = Float64
-            default = 100.
+            default = 100.0
         "--output-interval-days", "-I"
             help = "Interval at which to record outputs at in simulated days"
             arg_type = Float64
-            default = 30.
+            default = 30.0
         "--grid-size", "-G"
             help = "Grid dimensions in x, y and depth"
             nargs = 3
@@ -79,7 +77,6 @@ function parse_commandline()
 end
 
 function main()
-
     args = parse_commandline()
 
     args["mpi"] && MPI.Init()
@@ -89,12 +86,15 @@ function main()
     architecture = args["cpu"] ? CPU() : GPU()
 
     if args["mpi"]
-        partition = Partition(x=args["ranks-along-x"], y=Equal())
+        partition = Partition(; x=args["ranks-along-x"], y=Equal())
         @onrank 0 @info partition
         architecture = Distributed(architecture; partition)
     end
 
     output_interval = args["output-interval-days"] * 1day
+
+    snapshot_schedule = TimeInterval(output_interval)
+    average_schedule = AveragedTimeInterval(output_interval; window=output_interval)
 
     parameters = Spall2011Parameters(;
         grid_size=Tuple(args["grid-size"]),
@@ -114,7 +114,7 @@ function main()
         @info "Writing outputs to $output_directory"
     end
 
-    configuration = SimulationConfiguration(
+    configuration = SimulationConfiguration(;
         architecture=architecture,
         simulation_time=args["simulation-years"]*365day,
         initial_timestep=10minute,
@@ -124,17 +124,29 @@ function main()
         output_directory=output_directory,
         output_filename_stem="spall_2012_gyre_model",
         output_types=(
-            HorizontalSlice(schedule=TimeInterval(output_interval)),
-            HorizontalSlice(depth=parameters.bottom_depth + parameters.sill_height, schedule=TimeInterval(output_interval)),
-            XDepthSlice(y_or_latitude=parameters.sill_center_y, schedule=TimeInterval(output_interval)),
-            YDepthSlice(x_or_longitude=parameters.domain_size_x / 2, schedule=TimeInterval(output_interval)),
-            FreeSurfaceFields(schedule=TimeInterval(output_interval)),
-            MOCStreamFunction(),
-            BarotropicStreamFunction(),
-            MOCStrength(y_or_latitude=parameters.sill_center_y),
-            MeridionalHeatTransport(y_or_latitude=parameters.sill_center_y),
-            AverageKineticEnergy(region_mask=mask),
-            HorizontallyAveragedTracers(region_mask=mask),
+            horizontal_slice_output(; depth=0.0, schedule=snapshot_schedule),
+            horizontal_slice_output(;
+                depth=(parameters.bottom_depth + parameters.sill_height),
+                schedule=TimeInterval(output_interval),
+            ),
+            x_depth_slice_output(;
+                y_or_latitude=parameters.sill_center_y, schedule=snapshot_schedule
+            ),
+            y_depth_slice_output(;
+                x_or_longitude=(parameters.domain_size_x / 2), schedule=snapshot_schedule
+            ),
+            free_surface_output(; schedule=snapshot_schedule),
+            stream_functions_output(; schedule=average_schedule),
+            moc_strength_at_y_output(;
+                y_or_latitude=parameters.sill_center_y, schedule=average_schedule
+            ),
+            northward_heat_transport_at_y_output(;
+                y_or_latitude=parameters.sill_center_y, schedule=average_schedule
+            ),
+            spatially_averaged_output(;
+                variables=[SpecificKineticEnergy()], mask=mask, schedule=average_schedule
+            ),
+            horizontally_averaged_output(; mask=mask, schedule=average_schedule),
         ),
         progress_message_interval=1000,
         pickup_checkpoint=args["pickup-checkpoint"],
@@ -147,7 +159,6 @@ function main()
     end
 
     run_simulation(parameters, configuration)
-
 end
 
 main()

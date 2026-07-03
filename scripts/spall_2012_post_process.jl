@@ -1,6 +1,8 @@
 using ArgParse
 using GyreInABox
 using JLD2
+using NCDatasets
+using Zarr
 using Oceananigans
 using Oceananigans.Units
 using CairoMakie
@@ -10,17 +12,17 @@ function parse_commandline()
 
     @add_arg_table s begin
         "run-output-path"
-        help = "Path to directory containing run outputs"
-        arg_type = String
-        required = true
+            help = "Path to directory containing run outputs"
+            arg_type = String
+            required = true
         "--plot-time-range", "-t"
-        help = "Time range for plots in format (start, step, end) in days"
-        arg_type = Float64
-        nargs = 3
+            help = "Time range for plots in format (start, step, end) in days"
+            arg_type = Float64
+            nargs = 3
         "--output-filename-suffix", "-o"
-        help = "Output filename suffix for summary plot"
-        arg_type = String
-        default = "summary"
+            help = "Output filename suffix for summary plot"
+            arg_type = String
+            default = "summary"
     end
 
     return parse_args(s)
@@ -32,18 +34,30 @@ function main()
     parameters = load("$(args["run-output-path"])/parameters.jld2")["parameters"]
     configuration = load("$(args["run-output-path"])/configuration.jld2")["configuration"]
 
-    outputs = Dict()
+    outputs = Dict{GyreInABox.AbstractModelVariable, GyreInABox.ModelOutput}()
 
-    for output_type in (
-        HorizontallyAveragedTracers,
-        AverageKineticEnergy,
-        MOCStrength,
-        MeridionalHeatTransport,
+    variables = (
+        S=Salinity(),
+        T=Temperature(),
+        eₖ=SpecificKineticEnergy(),
+        Ψᴹ=MOCStreamFunction(),
+        Q=NorthwardHeatTransport(),
     )
-        output_type_index = findfirst(ot -> ot isa output_type, configuration.output_types)
-        outputs[output_type] = if !isnothing(output_type_index)
+
+    for variable in values(variables)
+        output_type_index = findfirst(
+            ot -> (
+                variable in ot.variables && 
+                GyreInABox.spatial_dimensions(
+                    variable, ot.processor
+                ) isa GyreInABox.ZeroOrOneSpatialDimensions
+            ), 
+            configuration.output_types
+        )
+        outputs[variable] = if !isnothing(output_type_index)
             configuration.output_types[output_type_index]
         else
+            @info "Model output for variable $(variable) not found in configuration"
             nothing
         end
     end
@@ -59,20 +73,25 @@ function main()
 
     row = 2
 
-    if !isnothing(outputs[HorizontallyAveragedTracers])
-        averaged_tracers_output = outputs[HorizontallyAveragedTracers]
-        S_timeseries = FieldTimeSeries(
-            "$(args["run-output-path"])/$(GyreInABox.output_filename(configuration.output_filename_stem, averaged_tracers_output))",
-            "S";
-            backend=InMemory(),
-            times=plot_times,
+    function load_field_time_series(variable)
+        FieldTimeSeries(
+                joinpath(
+                    args["run-output-path"],
+                    GyreInABox.output_filename(
+                        configuration.output_filename_stem, 
+                        outputs[variable],
+                        GyreInABox.extension(configuration.output_writer_type)
+                    )
+                ),
+                GyreInABox.short_name(variable);
+                backend=InMemory(),
+                times=plot_times,
         )
-        T_timeseries = FieldTimeSeries(
-            "$(args["run-output-path"])/$(GyreInABox.output_filename(configuration.output_filename_stem, averaged_tracers_output))",
-            "T";
-            backend=InMemory(),
-            times=plot_times,
-        )
+    end
+
+    if !isnothing(outputs[variables.S]) && !isnothing(outputs[variables.T])
+        S_timeseries = load_field_time_series(variables.S)
+        T_timeseries = load_field_time_series(variables.T)
         ρ_timeseries = (
             parameters.sea_water_density .+ stack(
                 (parameters.haline_contraction_coefficient * S_timeseries[t] - parameters.thermal_expansion_coefficient * T_timeseries[t])[
@@ -80,18 +99,18 @@ function main()
                 ] for t in 1:length(S_timeseries)
             )
         )
-        times = S_timeseries.times / 365days
+        times = collect(S_timeseries.times / 365days)
         depths = znodes(S_timeseries)
 
         col = 1
         for (label, timeseries, cmap) in [
             (
-                "Salinity / g kg⁻¹",
+                "$(GyreInABox.long_name(variables.S)) / $(GyreInABox.units(variables.S))",
                 S_timeseries[1, 1, 1:parameters.grid_size[3], 1:length(times)],
                 :haline,
             ),
             (
-                "Temperature / °C",
+                "$(GyreInABox.long_name(variables.T)) / $(GyreInABox.units(variables.T))",
                 T_timeseries[1, 1, 1:parameters.grid_size[3], 1:length(times)],
                 :thermal,
             ),
@@ -115,23 +134,14 @@ function main()
 
     col = 1
 
-    for (output_type, field_name, label) in (
-        (AverageKineticEnergy, "eₖ", "Average kinetic energy / m²s⁻²"),
-        (MOCStrength, "W", "MOC strength / Sv"),
-        (MeridionalHeatTransport, "Q", "Meridional heat transport / TW"),
-    )
-        if !isnothing(outputs[output_type])
-            output = outputs[output_type]
-            timeseries = FieldTimeSeries(
-                "$(args["run-output-path"])/$(GyreInABox.output_filename(configuration.output_filename_stem, output))",
-                field_name;
-                backend=InMemory(),
-                times=plot_times,
-            )
-            times = timeseries.times / 365days
+    for variable in (variables.eₖ, variables.Ψᴹ, variables.Q)
+        if !isnothing(outputs[variable])
+            @info variable
+            timeseries = load_field_time_series(variable)
+            times = collect(timeseries.times / 365days)
             ax = Axis(
                 fig[row, col:(col + 1)];
-                title=label,
+                title="$(GyreInABox.long_name(variable)) / $(GyreInABox.units(variable))",
                 xlabel="Time / years",
                 limits=(extrema(times), nothing),
             )
@@ -156,7 +166,14 @@ function main()
 
     resize_to_layout!(fig)
 
-    output_path = "$(args["run-output-path"])/$(configuration.output_filename_stem)_$(args["output-filename-suffix"]).svg"
+    output_path = joinpath(
+        args["run-output-path"],
+        GyreInABox.output_filename(
+            configuration.output_filename_stem,
+            args["output-filename-suffix"],
+            "svg"
+        )
+    )
 
     @info "Writing output figure to $(output_path)"
     save(output_path, fig)
