@@ -206,6 +206,7 @@ function plot_outputs(
                 configuration.output_filename_stem,
                 output_type,
                 grid;
+                output_file_extension=extension(configuration.output_writer_type),
                 kwargs...,
             )
         end
