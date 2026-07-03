@@ -19,58 +19,58 @@ function parse_commandline()
 
     @add_arg_table s begin
         "--surface-temperature-restoring-strength", "-R"
-        help = "Surface temperature restoring strength / W m⁻² K⁻¹"
-        arg_type = Float64
-        default = 20.0
+            help = "Surface temperature restoring strength / W m⁻² K⁻¹"
+            arg_type = Float64
+            default = 20.0
         "--northern-basin-surface-evaporation", "-E"
-        help = "Surface net evaporation-precipitation in northern basin above sill / m s⁻¹"
-        arg_type = Float64
-        default = -2e-8
+            help = "Surface net evaporation-precipitation in northern basin above sill / m s⁻¹"
+            arg_type = Float64
+            default = -2e-8
         "--sill-height", "-H"
-        help = "Sill height / m"
-        arg_type = Float64
-        default = 1000.0
+            help = "Sill height / m"
+            arg_type = Float64
+            default = 1000.0
         "--simulation-years", "-Y"
-        help = "Number of simulated year to run for"
-        arg_type = Float64
-        default = 100.0
+            help = "Number of simulated year to run for"
+            arg_type = Float64
+            default = 100.0
         "--output-interval-days", "-I"
-        help = "Interval at which to record outputs at in simulated days"
-        arg_type = Float64
-        default = 30.0
+            help = "Interval at which to record outputs at in simulated days"
+            arg_type = Float64
+            default = 30.0
         "--grid-size", "-G"
-        help = "Grid dimensions in x, y and depth"
-        nargs = 3
-        arg_type = Int
-        default = [200, 400, 30]
+            help = "Grid dimensions in x, y and depth"
+            nargs = 3
+            arg_type = Int
+            default = [200, 400, 30]
         "--free-surface-substeps", "-S"
-        help = "Number of substeps to use in split-explicit free surface scheme (defaults to adaptive if not specified)"
-        arg_type = Int
+            help = "Number of substeps to use in split-explicit free surface scheme (defaults to adaptive if not specified)"
+            arg_type = Int
         "--output-directory", "-O"
-        help = "Directory to write outputs to"
-        arg_type = String
-        default = "."
+            help = "Directory to write outputs to"
+            arg_type = String
+            default = "."
         "--cpu"
-        help = "Run on CPU (rather than GPU, the default)"
-        action = :store_true
+            help = "Run on CPU (rather than GPU, the default)"
+            action = :store_true
         "--mpi"
-        help = "Use MPI to distribute computations"
-        action = :store_true
+            help = "Use MPI to distribute computations"
+            action = :store_true
         "--ranks-along-x"
-        help = "Number of ranks to distribute x dimension of grid along if using MPI"
-        arg_type = Int
-        default = 1
+            help = "Number of ranks to distribute x dimension of grid along if using MPI"
+            arg_type = Int
+            default = 1
         "--use-eddy-closure"
-        help = "Use a dynamic Smagorinsky eddy closure"
-        action = :store_true
+            help = "Use a dynamic Smagorinsky eddy closure"
+            action = :store_true
         "--pickup-checkpoint", "-P"
-        help = "Path to checkpoint to restore simulation state from at initialisation"
-        arg_type = String
+            help = "Path to checkpoint to restore simulation state from at initialisation"
+            arg_type = String
         "--output-format", "-F"
-        help = "Format to use for writing model outputs - one of JLD2, NetCDF or Zarr"
-        arg_type = String
-        default = "JLD2"
-        range_tester = x -> x ∈ keys(_OUTPUT_WRITER_TYPES)
+            help = "Format to use for writing model outputs - one of JLD2, NetCDF or Zarr"
+            arg_type = String
+            default = "JLD2"
+            range_tester = x -> x ∈ keys(_OUTPUT_WRITER_TYPES)
     end
 
     return parse_args(s)
