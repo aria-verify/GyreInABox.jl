@@ -256,7 +256,7 @@ function plot_field_on_axis!(
     variable::AbstractModelVariable,
     ::Tuple{<:Real,<:Real},
 )
-    times = field_timeseries.times / 1day
+    times = field_timeseries.times / 365days
     spatial_dims..., _ = dim_x, dim_y, dim_z, dim_t = size(field_timeseries)
     indices = field_timeseries.indices
     indices = Tuple(
