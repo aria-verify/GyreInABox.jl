@@ -102,7 +102,7 @@ function add_output_writers!(
     )
     for output in output_types
         kwargs = if output_writer_type == NetCDFWriter
-            (; output_attributes=output_attributes(variables))
+            (; output_attributes=output_attributes(output.variables))
         else
             (;)
         end
