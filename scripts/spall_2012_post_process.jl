@@ -136,7 +136,6 @@ function main()
 
     for variable in (variables.eₖ, variables.Ψᴹ, variables.Q)
         if !isnothing(outputs[variable])
-            @info variable
             timeseries = load_field_time_series(variable)
             times = collect(timeseries.times / 365days)
             ax = Axis(
