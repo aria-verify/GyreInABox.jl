@@ -1,5 +1,13 @@
 const DEFAULT_SCHEDULE = TimeInterval(1day)
 
+abstract type AbstractModelOutput{S} end
+
+struct PointModelOutput{S, T} <: AbstractModelOutput{S}
+    variables::Tuple
+    schedule::S
+    points::Matrix{T}
+end
+
 """
 $(TYPEDEF)
 
@@ -7,7 +15,7 @@ Specification of model outputs to write out during simulation.
 
 $(TYPEDFIELDS)
 """
-struct ModelOutput{S,P}
+struct FieldModelOutput{S,P} <: AbstractModelOutput{S}
     "Model variables to record as part of output"
     variables::Vector{<:AbstractModelVariable}
     "Schedule to record outputs at"
@@ -28,7 +36,7 @@ Records horizontal slices through model fields at specified depth.
 function horizontal_slice_output(;
     depth, schedule=DEFAULT_SCHEDULE, variables=VELOCITY_AND_TRACER_VARIABLES
 )
-    ModelOutput(
+    FieldModelOutput(
         variables, schedule, SpatialSliceProcessor(; z=SlicedSpatialDimension(depth))
     )
 end
@@ -46,7 +54,7 @@ Records vertical slices through model fields at specified northward y coordinate
 function x_depth_slice_output(;
     y_or_latitude, schedule=DEFAULT_SCHEDULE, variables=VELOCITY_AND_TRACER_VARIABLES
 )
-    ModelOutput(
+    FieldModelOutput(
         variables,
         schedule,
         SpatialSliceProcessor(; y=SlicedSpatialDimension(y_or_latitude)),
@@ -66,7 +74,7 @@ Records vertical slices through model fields at specified eastward x coordinate
 function y_depth_slice_output(;
     x_or_longitude, schedule=DEFAULT_SCHEDULE, variables=VELOCITY_AND_TRACER_VARIABLES
 )
-    ModelOutput(
+    FieldModelOutput(
         variables,
         schedule,
         SpatialSliceProcessor(; x=SlicedSpatialDimension(x_or_longitude)),
@@ -83,7 +91,7 @@ Free surface fields output.
 Records two-dimensional free surface (displacement and barotropic velocity) fields.
 """
 function free_surface_output(; schedule=DEFAULT_SCHEDULE)
-    ModelOutput(
+    FieldModelOutput(
         [FreeSurfaceDisplacement(); BAROTROPIC_VELOCITY_VARIABLES], schedule, nothing
     )
 end
@@ -101,7 +109,7 @@ computed over whole domain or a region specified by a binary mask.
 function depth_averaged_output(;
     schedule=DEFAULT_SCHEDULE, variables=VELOCITY_AND_TRACER_VARIABLES, mask=nothing
 )
-    ModelOutput(variables, schedule, SpatialAverageProcessor((3,), mask))
+    FieldModelOutput(variables, schedule, SpatialAverageProcessor((3,), mask))
 end
 
 """
@@ -118,7 +126,7 @@ region specified by a binary mask.
 function horizontally_averaged_output(;
     schedule=DEFAULT_SCHEDULE, variables=TRACER_VARIABLES, mask=nothing
 )
-    ModelOutput(variables, schedule, SpatialAverageProcessor((1, 2), mask))
+    FieldModelOutput(variables, schedule, SpatialAverageProcessor((1, 2), mask))
 end
 
 """
@@ -134,7 +142,7 @@ specified by a binary mask.
 function spatially_averaged_output(;
     schedule=DEFAULT_SCHEDULE, variables=TRACER_VARIABLES, mask=nothing
 )
-    ModelOutput(variables, schedule, SpatialAverageProcessor((1, 2, 3), mask))
+    FieldModelOutput(variables, schedule, SpatialAverageProcessor((1, 2, 3), mask))
 end
 
 """
@@ -149,7 +157,7 @@ Records two-dimensional fields corresponding to MOC and barotropic stream functi
 See [`MOCStreamFunction`](@ref) and [`BarotropicStreamFunction`](@ref) for more details
 """
 function stream_functions_output(; schedule=DEFAULT_SCHEDULE)
-    ModelOutput([MOCStreamFunction(), BarotropicStreamFunction()], schedule, nothing)
+    FieldModelOutput([MOCStreamFunction(), BarotropicStreamFunction()], schedule, nothing)
 end
 
 """
@@ -192,7 +200,7 @@ given y / latitude coordinate.
 The northward heat transport is computed here as described in [`NorthwardHeatTransport`](@ref).
 """
 function northward_heat_transport_at_y_output(; y_or_latitude, schedule=DEFAULT_SCHEDULE)
-    ModelOutput(
+    FieldModelOutput(
         [NorthwardHeatTransport()],
         schedule,
         SpatialSliceProcessor(; y=SlicedSpatialDimension(y_or_latitude)),
@@ -204,7 +212,7 @@ $(SIGNATURES)
 
 Symbol label for output type `output` to use in naming output file and registering output writer.
 """
-function label(output::ModelOutput)
+function label(output::FieldModelOutput)
     base_label =
         "variables_" *
         join((short_name(v) for v in output.variables), "_") *
@@ -229,7 +237,7 @@ $(SIGNATURES)
 
 Spatial grid indices output type `output` records fields at for grid `grid`.
 """
-function indices(output::ModelOutput, grid)
+function indices(output::FieldModelOutput, grid)
     per_variable_indices = [
         indices(spatial_dimensions(variable, output.processor), grid) for
         variable in output.variables
@@ -240,13 +248,15 @@ function indices(output::ModelOutput, grid)
     first(per_variable_indices)
 end
 
+indices(output::AbstractModelOutput, grid) = (:, :, :)
+
 """
 $(SIGNATURES)
 
 Named tuple of output fields deriving from those in `model` to 
 record for output `model_output`.
 """
-function fields(model_output::ModelOutput, model)
+function fields(model_output::FieldModelOutput, model)
     NamedTuple(
         Symbol(short_name(variable)) =>
             process(model_output.processor, field(variable, model)) for
@@ -259,7 +269,7 @@ $(SIGNATURES)
 
 Time schedule to record output type at.
 """
-schedule(output::ModelOutput) = output.schedule
+schedule(output::AbstractModelOutput) = output.schedule
 
 """
 $(SIGNATURES)
@@ -280,7 +290,7 @@ function output_filename(stem::String, label::String, extension::Nothing)
 end
 
 function output_filename(
-    stem::String, output::ModelOutput, extension::Union{String,Nothing}=nothing
+    stem::String, output::AbstractModelOutput, extension::Union{String,Nothing}=nothing
 )
     output_filename(stem, label(output), extension)
 end

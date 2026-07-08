@@ -339,7 +339,7 @@ function plot_output(
     plot_output_type::AbstractPlotOutput,
     output_directory::String,
     output_filename_stem::String,
-    model_output::ModelOutput,
+    model_output::AbstractModelOutput,
     grid::AbstractGrid;
     output_file_extension::String="jld2",
     max_columns::Int=3,
