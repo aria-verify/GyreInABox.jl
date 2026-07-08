@@ -1,0 +1,456 @@
+"""
+$(TYPEDEF)
+
+Parameters for simplified ocean gyre model from Spall (2011; 2012).
+    
+$(TYPEDSIGNATURES)
+    
+## Details
+
+Real-valued parameters of model controlling initial and boundary conditions.
+
+## References
+
+1. Spall, M.A., 2011. On the Role of Eddies and Surface Forcing in the Heat Transport 
+   and Overturning Circulation in Marginal Seas. Journal of Climate, 24, 4844--4858,
+   https://doi.org/10.1175/2011JCLI4130.
+2. Spall, M. A., 2012: Influences of Precipitation on Water Mass Transformation and 
+   Deep Convection. J. Phys. Oceanogr., 42, 1684--1700,
+   https://doi.org/10.1175/JPO-D-11-0230.1. 
+
+$(TYPEDFIELDS)
+"""
+@kwdef struct SpallDGParameters{T, S} <: AbstractParameters{T}
+    "Grid dimensions in x, y and depth"
+    grid_size::NTuple{3,Int} = (200, 400, 20)
+    "Dimensions of grid halo region in x, y and depth"
+    halo_size::NTuple{3,Int} = (7, 7, 4)
+    "β-plane Coriolis offset parameters / s⁻¹"
+    coriolis_offset::T = 1.2e-4
+    "β-plane Coriolis coefficient parameter / m⁻¹s⁻¹"
+    coriolis_coefficient::T = 2e-11
+    "Zonal wind stress amplitue / N m⁻²"
+    zonal_wind_stress::T = 0.15
+    "Meridional wind stress amplitue / N m⁻²"
+    meridional_wind_stress::T = 0.0
+    "Bottom drag damping / m s⁻¹"
+    μ::T = 1e-3
+    "Surface temperature restoring strength / W m⁻² K⁻¹"
+    surface_temperature_restoring_strength::T = 20.0
+    "Buoyancy vertical stratification coefficient / s⁻²"
+    vertical_stratification::T = 2e-6
+    "Vertical scalar viscosity turbulence closure coefficient / m² s⁻¹"
+    vertical_viscosity_coefficient::T = 1e-5
+    "Vertical scalar diffusivity turbulence closure coefficient / m² s⁻¹"
+    vertical_diffusivity_coefficient::T = 1e-5
+    "Enhanced vertical scalar diffusivity coefficient in statically unstable conditions / m² s⁻¹"
+    convective_vertical_diffusivity_coefficient::T = 1000.0
+    "Thermal expansion coefficient / kg m⁻³ K⁻¹"
+    thermal_expansion_coefficient::T = 0.2
+    "Haline contraction coefficient / kg m⁻³"
+    haline_contraction_coefficient::T = 0.8
+    "Sea water reference density / kg m⁻³"
+    sea_water_density::T = 1026.0
+    "Sea water specific heat capacity / J K⁻¹ kg⁻¹"
+    sea_water_heat_capacity::T = 3991.0
+    "Reference salinity level used for initialisation and southern region forcing"
+    reference_salinity::T = 35.0
+    "Surface net evaporation-precipitation (salinity flux coefficient) in northern basin above sill / m s⁻¹"
+    northern_basin_surface_evaporation::T = -2e-8
+    "Northern boundary surface temperature / °C"
+    northern_surface_temperature::T = 2.0
+    "Distance north along western boundary that surface temperature reaches limit / m"
+    north_western_temperature_limit_distance::T = 840kilometer
+    "Southern boundary surface temperature / °C"
+    southern_surface_temperature::T = 10.0
+    "Southern region temperature (and salinity) relaxation time scale / s"
+    southern_region_relaxation_time::T = 20day
+    "Southern region extent / m"
+    southern_region_extent::T = 200kilometers
+    "Southern region boundary smoothing window / m"
+    southern_boundary_window_width::T = 0.0
+    "Scale factor for exponentially spaced depth grid"
+    depth_grid_scale_factor::T = 825.0
+    "Domain size in x dimension / m"
+    domain_size_x::T = 1000kilometers
+    "Domain size in y dimension / m"
+    domain_size_y::T = 2000kilometers
+    "Depth of bottom of domain (most negative z) / m"
+    bottom_depth::T = -2kilometers
+    "Location of center of sill on sea floor along y dimension / m"
+    sill_center_y::T = 1200kilometers
+    "Width of sill on sea floor / m"
+    sill_width::T = 400kilometers
+    "Height of sill on sea floor / m"
+    sill_height::T = 1kilometers
+    "Width of slope on side walls of domain / m"
+    side_slope_width::T = 140kilometers
+    "Depth at which slope on side walls starts / m"
+    side_slope_top_depth::T = 50meters
+    "Width of slope on top wall of domain / m"
+    top_slope_width::T = 20kilometers
+    "Whether to use CATKE rather than scalar vertical diffusivity turbulence closure"
+    use_catke_closure::Bool = false
+    "Whether to include a dynamic Smagorinsky closure as a parameterization for eddy viscosity and diffusivity"
+    use_eddy_closure::Bool = true
+    "Whether to initialise with reference surface temperature or constant"
+    initialize_with_reference_surface_temperature::Bool = true
+    "Surface wind forcing ramp-up time scale / s"
+    surface_wind_forcing_ramp_up_timescale::T = 10day
+    "Order of WENO advection schemes for momentum and tracers"
+    advection_order::Int = 5
+    "Split explicit free surface CFL target if adaptive substepping to be used"
+    split_explicit_free_surface_cfl::T = 0.7
+    "Split explicit free surface number of steps if fixed substepping to be used"
+    split_explicit_free_surface_substeps::S = nothing 
+end
+
+"""
+Bottom surface drag on zonal velocity component in m² s⁻².
+
+$(SIGNATURES)
+
+## Details
+
+Computes bottom surface drag at horizontal grid indices `i` and `j` for grid `grid` and
+model clock `clock`, with current model fields `model_fields` and parameters `p`.
+"""
+@inline function bottom_zonal_drag(i, j, grid, clock, model_fields, parameters::SpallDGParameters)
+    @inbounds -p.μ * model_fields.u[i, j, 1]
+end
+
+"""
+Bottom surface drag on meridional velocity component in m² s⁻².
+
+$(SIGNATURES)
+
+## Details
+
+Computes bottom surface drag at horizontal grid indices `i` and `j` for grid `grid` and
+model clock `clock`, with current model fields `model_fields` and parameters `p`.
+"""
+@inline function bottom_meridional_drag(
+    i, j, grid, clock, model_fields, parameters::SpallDGParameters
+)
+    @inbounds -parameters.μ * model_fields.v[i, j, 1]
+end
+
+function zonal_surface_wind_stress(x, y, t, parameters::SpallDGParameters)
+    (parameters.zonal_wind_stress / parameters.sea_water_density) *
+    smooth_step(t / parameters.surface_wind_forcing_ramp_up_timescale) *
+    sinpi(y / parameters.domain_size_y)
+end
+
+function meridional_surface_wind_stress(x, y, t, parameters::SpallDGParameters)
+    (parameters.meridional_wind_stress / parameters.sea_water_density) *
+    smooth_step(t / parameters.surface_wind_forcing_ramp_up_timescale) *
+    cospi(x / parameters.domain_size_x)
+end
+
+function sill_profile(y, center, width, height)
+    height * cospi((y - center) / width)^2
+end
+
+function side_wall_profile(x, width, height)
+    x < width ? height * (1 - (x / width)) : 0
+end
+
+function two_basin_bathymetry(x, y, parameters::SpallDGParameters)
+    depth = parameters.bottom_depth
+    northern_basin_radius = parameters.domain_size_x / 2
+    sill_northern_limit = parameters.sill_center_y + parameters.sill_width / 2
+    sill_southern_limit = parameters.sill_center_y - parameters.sill_width / 2
+    if y > parameters.domain_size_y - northern_basin_radius
+        # in northern basin rounded region
+        x_basin = x - northern_basin_radius
+        y_basin = y - (parameters.domain_size_y - northern_basin_radius)
+        r_basin = sqrt(x_basin^2 + y_basin^2)
+        if r_basin > northern_basin_radius
+            depth = 0
+        else
+            depth += side_wall_profile(
+                northern_basin_radius - r_basin,
+                parameters.top_slope_width +
+                (x_basin / r_basin)^2 *
+                (parameters.side_slope_width - parameters.top_slope_width),
+                parameters.side_slope_top_depth - parameters.bottom_depth,
+            )
+        end
+    elseif y > sill_southern_limit && y < sill_northern_limit
+        # in sill region
+        sill_height = sill_profile.(
+            y, parameters.sill_center_y, parameters.sill_width, parameters.sill_height
+        )
+        x_boundary = min(x, parameters.domain_size_x - x)
+        side_slope_height = side_wall_profile(
+            x_boundary,
+            parameters.side_slope_width,
+            parameters.side_slope_top_depth - parameters.bottom_depth,
+        )
+        depth += max(sill_height, side_slope_height)
+    else
+        # in southern basin or non-rounded northern basin region
+        x_boundary = min(x, parameters.domain_size_x - x)
+        if x_boundary < parameters.side_slope_width
+            depth += side_wall_profile(
+                x_boundary,
+                parameters.side_slope_width,
+                parameters.side_slope_top_depth - parameters.bottom_depth,
+            )
+        end
+    end
+    return depth
+end
+
+@inline function reference_surface_temperature(x, y, p::SpallDGParameters)
+    nw_offset = p.north_western_temperature_limit_distance
+    delta = p.domain_size_y - nw_offset
+    northern_temperature_y = if delta > 0
+        nw_offset + delta * (x / p.domain_size_x)^(2 * (1 - max(0, y - nw_offset) / delta))
+    else
+        p.domain_size_y
+    end
+    p.southern_surface_temperature +
+    min(
+        (
+            max(y - p.southern_region_extent, 0) /
+            (northern_temperature_y - p.southern_region_extent)
+        ),
+        1,
+    ) * (p.northern_surface_temperature - p.southern_surface_temperature)
+end
+
+@inline function surface_temperature_flux(
+    i, j, grid, clock, model_fields, p::SpallDGParameters
+)
+    x = xnode(i, j, 1, grid, Center(), Center(), Center())
+    y = ynode(i, j, 1, grid, Center(), Center(), Center())
+    @inbounds (model_fields.T[i, j, grid.Nz] - reference_surface_temperature(x, y, p)) * (
+        p.surface_temperature_restoring_strength /
+        (p.sea_water_density * p.sea_water_heat_capacity)
+    )
+end
+
+@inline surface_evaporation_minus_precipitation(y, p::SpallDGParameters) = (
+    y > p.sill_center_y ? p.northern_basin_surface_evaporation : 0.0
+)
+
+@inline function surface_salinity_flux(
+    i, j, grid, clock, model_fields, p::SpallDGParameters
+)
+    y = ynode(i, j, 1, grid, Center(), Center(), Center())
+    @inbounds -model_fields.S[i, j, grid.Nz] * surface_evaporation_minus_precipitation(y, p)
+end
+
+@inline function southern_region_mask(x, y, z, p::SpallDGParameters)
+    if p.southern_boundary_window_width == 0
+        y < p.southern_region_extent
+    else
+        # Use a smooth step function at boundary of mask
+        # Distance from boundary normalized by window width and offset by 0.5 as
+        # smooth_step interopolates from 0 to 1 over (0, 1) interval
+        d = (p.southern_region_extent - y) / p.southern_boundary_window_width + 0.5
+        smooth_step(d)
+    end
+end
+
+@inline function vertically_stratified_temperature(
+    z, surface_temperature, p::SpallDGParameters
+)
+    surface_temperature +
+    z * p.sea_water_density * p.vertical_stratification /
+    (p.thermal_expansion_coefficient * Oceananigans.defaults.gravitational_acceleration)
+end
+
+@inline function southern_region_temperature_target(x, y, z, t, p::SpallDGParameters)
+    vertically_stratified_temperature(z, p.southern_surface_temperature, p)
+end
+
+@inline function southern_region_temperature_forcing(
+    i, j, k, grid, clock, model_fields, parameters::SpallDGParameters
+)
+    t = clock.time
+    x, y, z = node(i, j, k, grid, Center(), Center(), Center())
+    return @inbounds(
+        southern_region_mask(x, y, z, parameters) * (
+            southern_region_temperature_target(x, y, z, t, parameters) -
+            model_fields.T[i, j, k]
+        ) / parameters.southern_region_relaxation_time
+    )
+end
+
+@inline function southern_region_salinity_forcing(
+    i, j, k, grid, clock, model_fields, parameters::SpallDGParameters
+)
+    t = clock.time
+    x, y, z = node(i, j, k, grid, Center(), Center(), Center())
+    return @inbounds(
+        southern_region_mask(x, y, z, parameters) *
+        (parameters.reference_salinity - model_fields.S[i, j, k]) /
+            parameters.southern_region_relaxation_time
+    )
+end
+
+function boundary_conditions(parameters::SpallDGParameters{T}) where {T}
+    u_bcs = FieldBoundaryConditions(;
+        top=FluxBoundaryCondition(zonal_surface_wind_stress; parameters),
+        bottom=FluxBoundaryCondition(bottom_zonal_drag; discrete_form=true, parameters),
+    )
+    v_bcs = FieldBoundaryConditions(;
+        top=FluxBoundaryCondition(meridional_surface_wind_stress; parameters),
+        bottom=FluxBoundaryCondition(
+            bottom_meridional_drag; discrete_form=true, parameters
+        ),
+    )
+    S_bcs = FieldBoundaryConditions(;
+        top=FluxBoundaryCondition(surface_salinity_flux; discrete_form=true, parameters)
+    )
+    T_bcs = FieldBoundaryConditions(;
+        top=FluxBoundaryCondition(surface_temperature_flux; discrete_form=true, parameters)
+    )
+    return (; u=u_bcs, v=v_bcs, S=S_bcs, T=T_bcs)
+end
+
+function forcing(parameters::SpallDGParameters)
+    (;
+        S=Forcing(southern_region_salinity_forcing; discrete_form=true, parameters),
+        T=Forcing(southern_region_temperature_forcing; discrete_form=true, parameters),
+    )
+end
+
+function grid(
+    parameters::SpallDGParameters, architecture::Oceananigans.AbstractArchitecture
+)
+    underlying_grid = RectilinearGrid(
+        architecture;
+        size=parameters.grid_size,
+        x=(0, parameters.domain_size_x),
+        y=(0, parameters.domain_size_y),
+        z=ExponentialDiscretization(
+            parameters.grid_size[3],
+            parameters.bottom_depth,
+            0;
+            scale=parameters.depth_grid_scale_factor,
+        ),
+        halo=parameters.halo_size,
+        topology=(Bounded, Bounded, Bounded),
+    )
+    ImmersedBoundaryGrid(
+        underlying_grid, GridFittedBottom((x, y) -> two_basin_bathymetry(x, y, parameters))
+    )
+end
+
+function buoyancy(parameters::SpallDGParameters)
+    equation_of_state = LinearEquationOfState(;
+        thermal_expansion=(
+            parameters.thermal_expansion_coefficient / parameters.sea_water_density
+        ),
+        haline_contraction=(
+            parameters.haline_contraction_coefficient / parameters.sea_water_density
+        ),
+    )
+    SeawaterBuoyancy(; equation_of_state)
+end
+
+function closure(parameters::SpallDGParameters)
+    vertical_mixing = if parameters.use_catke_closure
+        CATKEVerticalDiffusivity()
+    else
+        ConvectiveAdjustmentVerticalDiffusivity(;
+            background_νz=parameters.vertical_viscosity_coefficient,
+            background_κz=parameters.vertical_diffusivity_coefficient,
+            convective_νz=parameters.vertical_viscosity_coefficient,
+            convective_κz=parameters.convective_vertical_diffusivity_coefficient,
+        )
+    end
+    if parameters.use_eddy_closure
+        eddy_closure = DynamicSmagorinsky()
+        (eddy_closure, vertical_mixing)
+    else
+        vertical_mixing
+    end
+end
+
+function coriolis(parameters::SpallDGParameters)
+    BetaPlane(; f₀=parameters.coriolis_offset, β=parameters.coriolis_coefficient)
+end
+tracers(parameters::SpallDGParameters) = (:T, :S)
+function momentum_advection(parameters::SpallDGParameters)
+    Oceananigans.WENOVectorInvariant(; order=parameters.advection_order)
+end
+function tracer_advection(parameters::SpallDGParameters)
+    Oceananigans.WENO(; order=parameters.advection_order)
+end
+
+function free_surface(parameters::SpallDGParameters{<:Any, <:Nothing}, grid::AbstractGrid)
+    SplitExplicitFreeSurface(grid; cfl=parameters.split_explicit_free_surface_cfl)
+end
+
+function free_surface(parameters::SpallDGParameters{<:Any, <:Integer}, grid::AbstractGrid)
+    SplitExplicitFreeSurface(grid; substeps=parameters.split_explicit_free_surface_substeps)
+end
+
+function initialize!(model::Oceananigans.AbstractModel, parameters::SpallDGParameters)
+    function T_initial(x, y, z)
+        surface_temperature = if parameters.initialize_with_reference_surface_temperature
+            reference_surface_temperature(x, y, parameters)
+        else
+            parameters.southern_surface_temperature, parameters
+        end
+        vertically_stratified_temperature(z, surface_temperature, parameters)
+    end
+    set!(model; u=0.0, v=0.0, S=parameters.reference_salinity, T=T_initial)
+    nothing
+end
+
+function plot_domain_and_forcing(
+    parameters::SpallDGParameters; axis_height::Int=600, axis_width::Int=400
+)
+    grid = GyreInABox.grid(parameters, CPU())
+    temperature_field = CenterField(grid; indices=(:, :, grid.Nz))
+    set!(temperature_field, (x, y, z) -> reference_surface_temperature(x, y, parameters))
+    figure = Figure(; size=(axis_width * 4, axis_height), fontsize=12)
+    aspect = AxisAspect(parameters.domain_size_x / parameters.domain_size_y)
+    xlabel = "x / m"
+    ylabel = "y / m"
+    limits = ((0.0, parameters.domain_size_x), (0.0, parameters.domain_size_y))
+    ax1 = Axis(figure[1, 1]; title="Bottom depth / m", aspect, xlabel, ylabel, limits)
+    ax2 = Axis(
+        figure[1, 3];
+        title="Reference surface temperature / °C",
+        aspect,
+        xlabel,
+        ylabel,
+        limits,
+    )
+    ax3 = Axis(figure[1, 5]; title="Surface zonal velocity flux / m² s⁻²", aspect, ylabel)
+    ax4 = Axis(
+        figure[1, 6];
+        title="Surface net evaporation - precipitation / m s⁻¹",
+        aspect,
+        ylabel,
+    )
+    c1 = contourf!(ax1, -grid.immersed_boundary.bottom_height; colormap=:deep)
+    Colorbar(figure[1, 2], c1)
+    c2 = contourf!(ax2, temperature_field; colormap=:thermal, levels=2:11)
+    Colorbar(figure[1, 4], c2)
+    y = ynodes(grid, Face())
+    lines!(
+        ax3,
+        zonal_surface_wind_stress.(
+            nothing, y, parameters.surface_wind_forcing_ramp_up_timescale, (parameters,)
+        ),
+        y,
+    )
+    lines!(ax4, surface_evaporation_minus_precipitation.(y, (parameters,)), y)
+    resize_to_layout!(figure)
+    figure
+end
+
+function northern_basin_mask(parameters::SpallDGParameters)
+    HorizontalCircularRegionMask(
+        parameters.domain_size_x / 2,
+        parameters.domain_size_y - parameters.domain_size_x / 2,
+        parameters.domain_size_x / 10,
+    )
+end
