@@ -2,16 +2,31 @@ const DEFAULT_SCHEDULE = TimeInterval(1day)
 
 abstract type AbstractModelOutput{S} end
 
+"""
+$(TYPEDEF)
+
+Specification of point model outputs to write out during simulation.
+
+## Details
+
+Used to record values of fields associated with specified variables at one
+or more spatial points and a defined time schedule.
+
+$(TYPEDFIELDS)
+"""
 struct PointModelOutput{V,S,T} <: AbstractModelOutput{S}
+    "Model variables to record as part of output"
     variables::V
+    "Schedule to record outputs at"
     schedule::S
+    "Spatial points to record outputs at"
     points::Matrix{T}
 end
 
 """
 $(TYPEDEF)
 
-Specification of model outputs to write out during simulation.
+Specification of field model outputs to write out during simulation.
 
 $(TYPEDFIELDS)
 """
