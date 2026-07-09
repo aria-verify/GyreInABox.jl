@@ -180,10 +180,10 @@ function moc_strength_at_y_output(; y_or_latitude, schedule=DEFAULT_SCHEDULE)
     FieldModelOutput(
         (MOCStreamFunction(),),
         schedule,
-        (
+        [
             SpatialMaximumProcessor((3,)),
             SpatialSliceProcessor(; y=SlicedSpatialDimension(y_or_latitude)),
-        ),
+        ],
     )
 end
 
