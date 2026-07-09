@@ -177,7 +177,7 @@ strength is measured at respectively, where ``\\Psi^M`` is computed as described
 [`MOCStreamFunction`](@ref).
 """
 function moc_strength_at_y_output(; y_or_latitude, schedule=DEFAULT_SCHEDULE)
-    ModelOutput(
+    FieldModelOutput(
         (MOCStreamFunction(),),
         schedule,
         (
