@@ -210,15 +210,26 @@ end
 """
 $(SIGNATURES)
 
-Symbol label for output type `output` to use in naming output file and registering output writer.
+Label for output type `output` to use in naming output file and registering output writer.
 """
 function label(output::FieldModelOutput)
-    base_label =
-        "variables_" *
-        join((short_name(v) for v in output.variables), "_") *
-        "_at_" *
-        label(output.schedule)
+    base_label = label(variables(output), schedule(output))
     isnothing(output.processor) ? base_label : label(output.processor) * "_of_" * base_label
+end
+
+function label(output::PointModelOutput)
+    "point_measurements_of_" * label(variables(output), schedule(output))
+end
+
+function label(
+    variables::Tuple{Vararg{AbstractModelVariable}},
+    schedule::Oceananigans.Utils.AbstractSchedule,
+)
+    "variables_" * label(variables) * "_at_" * label(schedule)
+end
+
+function label(variables::Tuple{Vararg{AbstractModelVariable}})
+    join((short_name(v) for v in variables), "_")
 end
 
 function label(schedule::Oceananigans.Utils.AbstractSchedule)
@@ -270,6 +281,13 @@ $(SIGNATURES)
 Time schedule to record output type at.
 """
 schedule(output::AbstractModelOutput) = output.schedule
+
+"""
+$(SIGNATURES)
+
+Variables to record output type for.
+"""
+variables(output::AbstractModelOutput) = output.variables
 
 """
 $(SIGNATURES)
