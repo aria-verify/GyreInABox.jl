@@ -107,7 +107,7 @@ function add_output_writers!(
         end
         simulation.output_writers[Symbol(label(output))] = output_writer_type(
             model,
-            fields(output, model);
+            outputs(output, model);
             filename=output_filename(
                 output_filename_stem, output, extension(output_writer_type)
             ),

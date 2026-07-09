@@ -264,14 +264,25 @@ indices(output::AbstractModelOutput, grid) = (:, :, :)
 """
 $(SIGNATURES)
 
-Named tuple of output fields deriving from those in `model` to 
+Named tuple of outputs deriving from fields in `model` to 
 record for output `model_output`.
 """
-function fields(model_output::FieldModelOutput, model)
+function outputs(model_output::FieldModelOutput, model::Oceananigans.AbstractModel)
     NamedTuple(
         Symbol(short_name(variable)) =>
             process(model_output.processor, field(variable, model)) for
         variable in model_output.variables
+    )
+end
+
+function interpolate(model::Oceananigans.AbstractModel, variable::AbstractModelVariable, points::Matrix)
+    [Oceananigans.interpolate(Tuple(p), field(variable, model)) for p in eachrow(points)]
+end
+
+function outputs(model_output::PointModelOutput, ::Oceananigans.AbstractModel)
+    NamedTuple(
+        Symbol(short_name(variable)) => model -> interpolate(model, variable, model_output.points)
+        for variable in model_output.variables
     )
 end
 
