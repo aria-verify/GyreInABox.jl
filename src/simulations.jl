@@ -28,8 +28,7 @@ $(TYPEDFIELDS)
     "Iteration interval between progress messages"
     progress_message_interval::Int = 40
     "Model variables to show statistics of in progress messages"
-    progress_message_variables::Vector{<:AbstractModelVariable} =
-        VELOCITY_AND_TRACER_VARIABLES
+    progress_message_variables::Tuple = VELOCITY_AND_TRACER_VARIABLES
     "Target (advective) CFL number for time stepping wizard"
     target_cfl::T = 0.2
     "Update (iteration) interval for time stepping wizard"

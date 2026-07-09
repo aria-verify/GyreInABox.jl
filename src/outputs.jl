@@ -2,8 +2,8 @@ const DEFAULT_SCHEDULE = TimeInterval(1day)
 
 abstract type AbstractModelOutput{S} end
 
-struct PointModelOutput{S, T} <: AbstractModelOutput{S}
-    variables::Tuple
+struct PointModelOutput{V,S,T} <: AbstractModelOutput{S}
+    variables::V
     schedule::S
     points::Matrix{T}
 end
@@ -15,9 +15,9 @@ Specification of model outputs to write out during simulation.
 
 $(TYPEDFIELDS)
 """
-struct FieldModelOutput{S,P} <: AbstractModelOutput{S}
+struct FieldModelOutput{V,S,P} <: AbstractModelOutput{S}
     "Model variables to record as part of output"
-    variables::Vector{<:AbstractModelVariable}
+    variables::V
     "Schedule to record outputs at"
     schedule::S
     "Optional spatial processor(s) to apply to fields associated with variables"
@@ -92,7 +92,7 @@ Records two-dimensional free surface (displacement and barotropic velocity) fiel
 """
 function free_surface_output(; schedule=DEFAULT_SCHEDULE)
     FieldModelOutput(
-        [FreeSurfaceDisplacement(); BAROTROPIC_VELOCITY_VARIABLES], schedule, nothing
+        (FreeSurfaceDisplacement(), BAROTROPIC_VELOCITY_VARIABLES...), schedule, nothing
     )
 end
 
@@ -157,7 +157,7 @@ Records two-dimensional fields corresponding to MOC and barotropic stream functi
 See [`MOCStreamFunction`](@ref) and [`BarotropicStreamFunction`](@ref) for more details
 """
 function stream_functions_output(; schedule=DEFAULT_SCHEDULE)
-    FieldModelOutput([MOCStreamFunction(), BarotropicStreamFunction()], schedule, nothing)
+    FieldModelOutput((MOCStreamFunction(), BarotropicStreamFunction()), schedule, nothing)
 end
 
 """
@@ -178,12 +178,12 @@ strength is measured at respectively, where ``\\Psi^M`` is computed as described
 """
 function moc_strength_at_y_output(; y_or_latitude, schedule=DEFAULT_SCHEDULE)
     ModelOutput(
-        [MOCStreamFunction()],
+        (MOCStreamFunction(),),
         schedule,
-        [
+        (
             SpatialMaximumProcessor((3,)),
             SpatialSliceProcessor(; y=SlicedSpatialDimension(y_or_latitude)),
-        ],
+        ),
     )
 end
 
@@ -201,7 +201,7 @@ The northward heat transport is computed here as described in [`NorthwardHeatTra
 """
 function northward_heat_transport_at_y_output(; y_or_latitude, schedule=DEFAULT_SCHEDULE)
     FieldModelOutput(
-        [NorthwardHeatTransport()],
+        (NorthwardHeatTransport(),),
         schedule,
         SpatialSliceProcessor(; y=SlicedSpatialDimension(y_or_latitude)),
     )
