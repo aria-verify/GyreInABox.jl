@@ -413,14 +413,14 @@ function spatial_dimensions(::FreeSurfaceDisplacement)
     )
 end
 
-const VELOCITY_VARIABLES = [
+const VELOCITY_VARIABLES = (
     EastwardVelocity(), NorthwardVelocity(), UpwardVelocity()
-]
-const TRACER_VARIABLES = [Salinity(), Temperature()]
-const VELOCITY_AND_TRACER_VARIABLES = [VELOCITY_VARIABLES; TRACER_VARIABLES]
-const BAROTROPIC_VELOCITY_VARIABLES = [
+)
+const TRACER_VARIABLES = (Salinity(), Temperature())
+const VELOCITY_AND_TRACER_VARIABLES = (VELOCITY_VARIABLES..., TRACER_VARIABLES...)
+const BAROTROPIC_VELOCITY_VARIABLES = (
     EastwardBarotropicVelocity(), NorthwardBarotropicVelocity()
-]
+)
 
 """
 $(SIGNATURES)

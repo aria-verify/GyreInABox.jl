@@ -62,7 +62,7 @@ export SpecificKineticEnergy, SpecificTurbulentKineticEnergy
 export EastwardBarotropicVelocity, NorthwardBarotropicVelocity, FreeSurfaceDisplacement
 export MOCStreamFunction, BarotropicStreamFunction
 export NorthwardHeatTransport
-export ModelOutput
+export FieldModelOutput, PointModelOutput
 export horizontal_slice_output, x_depth_slice_output, y_depth_slice_output
 export depth_averaged_output, horizontally_averaged_output, spatially_averaged_output
 export free_surface_output, stream_functions_output

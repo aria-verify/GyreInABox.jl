@@ -34,7 +34,7 @@ function main()
     parameters = load("$(args["run-output-path"])/parameters.jld2")["parameters"]
     configuration = load("$(args["run-output-path"])/configuration.jld2")["configuration"]
 
-    outputs = Dict{GyreInABox.AbstractModelVariable, GyreInABox.ModelOutput}()
+    outputs = Dict{GyreInABox.AbstractModelVariable, GyreInABox.AbstractModelOutput}()
 
     variables = (
         S=Salinity(),

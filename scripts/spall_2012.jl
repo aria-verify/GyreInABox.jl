@@ -144,7 +144,7 @@ function main()
                 y_or_latitude=parameters.sill_center_y, schedule=average_schedule
             ),
             spatially_averaged_output(;
-                variables=[SpecificKineticEnergy()], mask=mask, schedule=average_schedule
+                variables=(SpecificKineticEnergy(),), mask=mask, schedule=average_schedule
             ),
             horizontally_averaged_output(; mask=mask, schedule=average_schedule),
         ),
