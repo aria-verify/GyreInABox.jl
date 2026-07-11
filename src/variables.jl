@@ -417,7 +417,7 @@ const VELOCITY_VARIABLES = (
     EastwardVelocity(), NorthwardVelocity(), UpwardVelocity()
 )
 const TRACER_VARIABLES = (Salinity(), Temperature())
-const VELOCITY_AND_TRACER_VARIABLES = (VELOCITY_VARIABLES; TRACER_VARIABLES)
+const VELOCITY_AND_TRACER_VARIABLES = (VELOCITY_VARIABLES..., TRACER_VARIABLES...)
 const BAROTROPIC_VELOCITY_VARIABLES = (
     EastwardBarotropicVelocity(), NorthwardBarotropicVelocity()
 )
