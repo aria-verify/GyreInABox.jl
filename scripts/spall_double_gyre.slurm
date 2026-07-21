@@ -3,8 +3,23 @@
 #SBATCH --job-name=spall-2012
 #SBATCH --output=%x-%j.out
 #SBATCH --gpus=1
-#SBATCH --ntasks-per-gpu=1
+##BATCH --ntasks-per-gpu=1
 #SBATCH --time=00:30:00
+#SBATCH --partition=gpu
+#SBATCH --qos=gpu-shd
+#SBATCH --account=n02-VERIFY
+
+module load PrgEnv-cray
+module load rocm
+module load craype-accel-amd-gfx90a
+module load craype-x86-milan
+
+export WORK=/work/n02/n02/ryapat30/
+
+export JULIA="$WORK/julia-1.12.6/bin/julia"  # The julia executable
+export PATH="$PATH:$WORK/julia-1.12.6/bin"  # The folder of the julia executable
+export JULIA_DEPOT_PATH="$WORK/.julia"
+export MPIEXECJL="$JULIA_DEPOT_PATH/bin/mpiexecjl"  # The path to the mpiexexjl executable
 
 # Run Spall (2012) model configuration and post process outputs
 
@@ -21,8 +36,15 @@ OUTPUT_FORMAT=NetCDF
 SILL_HEIGHT=0
 GRID="40 60 40"
 
-PROJECT_DIR=$PROJECTDIR/ryapat/GyreInABox.jl
-EXPERIMENT_DIR=$SCRATCH/$SLURM_JOB_NAME/job-$SLURM_JOB_ID
+#PROJECT_DIR=$PROJECTDIR/ryapat/GyreInABox.jl
+#EXPERIMENT_DIR=$SCRATCH/$SLURM_JOB_NAME/job-$SLURM_JOB_ID
+#SCRIPTS_DIR=$PROJECT_DIR/scripts
+#RUN_SCRIPT_PATH=$SCRIPTS_DIR/spall_2012.jl
+#POST_PROCESS_SCRIPT_PATH=$SCRIPTS_DIR/spall_2012_post_process.jl
+
+PROJECT_DIR=$WORK/Oceananigans_clean/projects/GyreInABox.jl
+#EXPERIMENT_DIR=$SCRATCH/$SLURM_JOB_NAME/job-$SLURM_JOB_ID
+EXPERIMENT_DIR=$PROJECT_DIR/$SLURM_JOB_NAME/job-$SLURM_JOB_ID
 SCRIPTS_DIR=$PROJECT_DIR/scripts
 RUN_SCRIPT_PATH=$SCRIPTS_DIR/spall_2012.jl
 POST_PROCESS_SCRIPT_PATH=$SCRIPTS_DIR/spall_2012_post_process.jl
