@@ -4,7 +4,7 @@ using JLD2
 using Oceananigans
 using Oceananigans.DistributedComputations
 using Oceananigans.Units
-using CUDA
+using AMDGPU
 using MPI
 using NCDatasets
 using Zarr
