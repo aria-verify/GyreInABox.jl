@@ -106,7 +106,7 @@ end
 function zonal_surface_wind_stress(x, y, t, parameters::Spall2011Parameters)
     (parameters.zonal_wind_stress / parameters.sea_water_density) *
     smooth_step(t / parameters.surface_wind_forcing_ramp_up_timescale) *
-    cospi(y / parameters.domain_size_y)
+    sinpi(y / parameters.domain_size_y)
 end
 
 function meridional_surface_wind_stress(x, y, t, parameters::Spall2011Parameters)

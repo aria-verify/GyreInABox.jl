@@ -3,23 +3,39 @@
 #SBATCH --job-name=spall-2012
 #SBATCH --output=%x-%j.out
 #SBATCH --gpus=1
-#SBATCH --ntasks-per-gpu=1
-#SBATCH --time=1:00:00
+##BATCH --ntasks-per-gpu=1
+#SBATCH --time=01:00:00
+#SBATCH --partition=gpu
+#SBATCH --qos=gpu-shd
+#SBATCH --account=n02-VERIFY
 
 # Run Spall (2012) model configuration and post process outputs
 
 # Set up environment variables - project directory variable may need to be
 # adjusted to wherever GyreInABox.jl repository is cloned to
 
+module load PrgEnv-cray
+module load rocm
+module load craype-accel-amd-gfx90a
+module load craype-x86-milan
+
+export WORK=/work/n02/n02/ryapat30/
+
+export JULIA="$WORK/julia-1.12.6/bin/julia"  # The julia executable
+export PATH="$PATH:$WORK/julia-1.12.6/bin"  # The folder of the julia executable
+export JULIA_DEPOT_PATH="$WORK/.julia"
+export MPIEXECJL="$JULIA_DEPOT_PATH/bin/mpiexecjl"  # The path to the mpiexexjl executable
+
 TEMPERATURE_RESTORING=20.0
 SURFACE_EVAPORATION=-9.25e-8
-SIMULATION_YEARS=10
+SIMULATION_YEARS=0.2
 OUTPUT_INTERVAL_DAYS=30
 PLOT_START_TIME_DAYS=1800  # Needs to be a multiple of OUTPUT_INTERVAL_DAYS
 PLOT_END_TIME_DAYS=$((SIMULATION_YEARS * 365))
 
-PROJECT_DIR=$HOME/projects/GyreInABox.jl
-EXPERIMENT_DIR=$SCRATCH/$SLURM_JOB_NAME/job-$SLURM_JOB_ID
+PROJECT_DIR=$WORK/Oceananigans_clean/projects/GyreInABox.jl
+#EXPERIMENT_DIR=$SCRATCH/$SLURM_JOB_NAME/job-$SLURM_JOB_ID
+EXPERIMENT_DIR=$PROJECT_DIR/$SLURM_JOB_NAME/job-$SLURM_JOB_ID
 SCRIPTS_DIR=$PROJECT_DIR/scripts
 RUN_SCRIPT_PATH=$SCRIPTS_DIR/spall_2012.jl
 POST_PROCESS_SCRIPT_PATH=$SCRIPTS_DIR/spall_2012_post_process.jl
@@ -39,7 +55,8 @@ echo "Running simulation for $SIMULATION_YEARS years..."
 
 julia --project=$SCRIPTS_DIR $RUN_SCRIPT_PATH \
     -R $TEMPERATURE_RESTORING -E $SURFACE_EVAPORATION \
-    -Y $SIMULATION_YEARS -I $OUTPUT_INTERVAL_DAYS -O $EXPERIMENT_DIR --
+    -Y $SIMULATION_YEARS -I $OUTPUT_INTERVAL_DAYS -O $EXPERIMENT_DIR \
+    -H 0
 
 # Post process simulation outputs in experiment directory
 
