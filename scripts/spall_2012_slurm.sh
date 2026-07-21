@@ -4,7 +4,7 @@
 #SBATCH --output=%x-%j.out
 #SBATCH --gpus=1
 #SBATCH --ntasks-per-gpu=1
-#SBATCH --time=3:00:00
+#SBATCH --time=1:00:00
 
 # Run Spall (2012) model configuration and post process outputs
 

@@ -22,7 +22,7 @@ $(TYPEDFIELDS)
 """
 @kwdef struct SpallDGParameters{T, S} <: AbstractParameters{T}
     "Grid dimensions in x, y and depth"
-    grid_size::NTuple{3,Int} = (200, 400, 20)
+    grid_size::NTuple{3,Int} = (400, 600, 20)
     "Dimensions of grid halo region in x, y and depth"
     halo_size::NTuple{3,Int} = (7, 7, 4)
     "β-plane Coriolis offset parameters / s⁻¹"
@@ -72,11 +72,11 @@ $(TYPEDFIELDS)
     "Scale factor for exponentially spaced depth grid"
     depth_grid_scale_factor::T = 825.0
     "Domain size in x dimension / m"
-    domain_size_x::T = 1000kilometers
+    domain_size_x::T = 4000kilometers
     "Domain size in y dimension / m"
-    domain_size_y::T = 2000kilometers
+    domain_size_y::T = 6000kilometers
     "Depth of bottom of domain (most negative z) / m"
-    bottom_depth::T = -2kilometers
+    bottom_depth::T = -4kilometers
     "Location of center of sill on sea floor along y dimension / m"
     sill_center_y::T = 1200kilometers
     "Width of sill on sea floor / m"
@@ -353,22 +353,7 @@ function buoyancy(parameters::SpallDGParameters)
 end
 
 function closure(parameters::SpallDGParameters)
-    vertical_mixing = if parameters.use_catke_closure
-        CATKEVerticalDiffusivity()
-    else
-        ConvectiveAdjustmentVerticalDiffusivity(;
-            background_νz=parameters.vertical_viscosity_coefficient,
-            background_κz=parameters.vertical_diffusivity_coefficient,
-            convective_νz=parameters.vertical_viscosity_coefficient,
-            convective_κz=parameters.convective_vertical_diffusivity_coefficient,
-        )
-    end
-    if parameters.use_eddy_closure
-        eddy_closure = DynamicSmagorinsky()
-        (eddy_closure, vertical_mixing)
-    else
-        vertical_mixing
-    end
+    closure = ConstantAnisotropicDiffusivity(νh=1e-3, νv=1e-1, κh=1e-3, κv=1e-1)
 end
 
 function coriolis(parameters::SpallDGParameters)
