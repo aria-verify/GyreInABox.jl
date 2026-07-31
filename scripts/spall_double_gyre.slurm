@@ -3,13 +3,13 @@
 #SBATCH --job-name=spall-2012
 #SBATCH --output=%x-%j.out
 #SBATCH --gpus=1
-##BATCH --ntasks-per-gpu=1
+#BATCH --ntasks-per-gpu=1
 #SBATCH --time=00:30:00
 #SBATCH --partition=gpu
 #SBATCH --qos=gpu-shd
 #SBATCH --account=n02-VERIFY
 
-module load PrgEnv-cray
+module load PrgEnv-amd
 module load rocm
 module load craype-accel-amd-gfx90a
 module load craype-x86-milan
@@ -28,13 +28,14 @@ export MPIEXECJL="$JULIA_DEPOT_PATH/bin/mpiexecjl"  # The path to the mpiexexjl 
 
 TEMPERATURE_RESTORING=20.0
 SURFACE_EVAPORATION=-9.25e-8
-SIMULATION_YEARS=1
+SIMULATION_YEARS=0.2
 OUTPUT_INTERVAL_DAYS=30
 PLOT_START_TIME_DAYS=1800  # Needs to be a multiple of OUTPUT_INTERVAL_DAYS
 PLOT_END_TIME_DAYS=$((SIMULATION_YEARS * 365))
-OUTPUT_FORMAT=NetCDF
+OUTPUT_FORMAT=JLD2
 SILL_HEIGHT=0
-GRID="40 60 40"
+#GRID="40 60 40"
+GRID="10 10 10"
 
 #PROJECT_DIR=$PROJECTDIR/ryapat/GyreInABox.jl
 #EXPERIMENT_DIR=$SCRATCH/$SLURM_JOB_NAME/job-$SLURM_JOB_ID
@@ -46,7 +47,7 @@ PROJECT_DIR=$WORK/Oceananigans_clean/projects/GyreInABox.jl
 #EXPERIMENT_DIR=$SCRATCH/$SLURM_JOB_NAME/job-$SLURM_JOB_ID
 EXPERIMENT_DIR=$PROJECT_DIR/$SLURM_JOB_NAME/job-$SLURM_JOB_ID
 SCRIPTS_DIR=$PROJECT_DIR/scripts
-RUN_SCRIPT_PATH=$SCRIPTS_DIR/spall_2012.jl
+RUN_SCRIPT_PATH=$SCRIPTS_DIR/spall_dg.jl
 POST_PROCESS_SCRIPT_PATH=$SCRIPTS_DIR/spall_2012_post_process.jl
 
 mkdir -p $EXPERIMENT_DIR

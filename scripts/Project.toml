@@ -1,7 +1,6 @@
 [deps]
 AMDGPU = "21141c5a-9bdb-4563-92ae-f87d6854732e"
 ArgParse = "c7e460c6-2fb9-53a9-8c5b-16f535851c63"
-CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 GyreInABox = "d40f67ff-4a83-48da-8213-065d3ac3739e"
 JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
@@ -15,7 +14,6 @@ GyreInABox = {path = ".."}
 
 [compat]
 ArgParse = "1.2.0"
-CUDA = "5.11.0"
 MPI = "0.20.0"
 NCDatasets = "0.14.15"
 Zarr = "0.10.0"

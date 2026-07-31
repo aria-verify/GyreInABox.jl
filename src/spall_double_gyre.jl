@@ -116,7 +116,7 @@ Computes bottom surface drag at horizontal grid indices `i` and `j` for grid `gr
 model clock `clock`, with current model fields `model_fields` and parameters `p`.
 """
 @inline function bottom_zonal_drag(i, j, grid, clock, model_fields, parameters::SpallDGParameters)
-    @inbounds -p.μ * model_fields.u[i, j, 1]
+    @inbounds -parameters.μ * model_fields.u[i, j, 1]
 end
 
 """
@@ -353,7 +353,45 @@ function buoyancy(parameters::SpallDGParameters)
 end
 
 function closure(parameters::SpallDGParameters)
-    closure = ConstantAnisotropicDiffusivity(νh=1e-3, νv=1e-1, κh=1e-3, κv=1e-1)
+    #closure = ConstantAnisotropicDiffusivity(νh=1e-3, νv=1e-1, κh=1e-3, κv=1e-1)
+    #kzbackground=5e-2
+    #Az=HorizontalScalarDiffusivity(ν=1e-1,κ=1e-1)
+    #Kz=VerticalScalarDiffusivity(VerticallyImplicitTimeDiscretization(),ν=kzbackground,κ=1e-3)
+    # simple vertical mixing to force convection (hydrostatic will not do convection on its own)
+    #convective_adjustment=ConvectiveAdjustmentVerticalDiffusivity(convective_κz= 1.0)
+    #closure=(Az,Kz,convective_adjustment)
+#    vertical_mixing =
+#        ConvectiveAdjustmentVerticalDiffusivity(;
+#            background_νz=parameters.vertical_viscosity_coefficient,
+#            background_κz=parameters.vertical_diffusivity_coefficient,
+#            convective_νz=parameters.vertical_viscosity_coefficient,
+#            convective_κz=parameters.convective_vertical_diffusivity_coefficient,
+#        )
+#
+#    eddy_closure = DynamicSmagorinsky()
+    # closure = ScalarDiffusivity(
+    #νh = 1e-2,
+    #νz = 1e-5,
+    #κh = 1e-3,
+    #κz = 1e-5
+#)
+    #closure=(Az,Kz)
+    vertical_mixing = if parameters.use_catke_closure
+        CATKEVerticalDiffusivity()
+    else
+        ConvectiveAdjustmentVerticalDiffusivity(;
+            background_νz=parameters.vertical_viscosity_coefficient,
+            background_κz=parameters.vertical_diffusivity_coefficient,
+            convective_νz=parameters.vertical_viscosity_coefficient,
+            convective_κz=parameters.convective_vertical_diffusivity_coefficient,
+        )
+    end
+    if parameters.use_eddy_closure
+        eddy_closure = DynamicSmagorinsky()
+        (eddy_closure, vertical_mixing)
+    else
+        vertical_mixing
+    end
 end
 
 function coriolis(parameters::SpallDGParameters)

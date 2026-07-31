@@ -83,7 +83,7 @@ function main()
 
     @onrank 0 @info "Parsed args\n  " * join(("$arg = $val" for (arg, val) in args), "\n  ")
 
-    architecture = args["cpu"] ? CPU() : GPU()
+    architecture = args["cpu"] ? CPU() : GPU
 
     if args["mpi"]
         partition = Partition(; x=args["ranks-along-x"], y=Equal())

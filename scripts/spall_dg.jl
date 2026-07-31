@@ -1,10 +1,10 @@
-using ArgParse
 using GyreInABox
+using ArgParse
 using JLD2
 using Oceananigans
 using Oceananigans.DistributedComputations
 using Oceananigans.Units
-using CUDA
+using AMDGPU
 using MPI
 using NCDatasets
 using Zarr
@@ -83,7 +83,7 @@ function main()
 
     @onrank 0 @info "Parsed args\n  " * join(("$arg = $val" for (arg, val) in args), "\n  ")
 
-    architecture = args["cpu"] ? CPU() : GPU()
+    architecture = args["cpu"] ? CPU() : GPU(AMDGPU.ROCBackend())
 
     if args["mpi"]
         partition = Partition(; x=args["ranks-along-x"], y=Equal())

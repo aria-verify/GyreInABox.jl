@@ -54,7 +54,7 @@ using CairoMakie
 using Printf
 using JLD2
 
-export DoubleGyreParameters, Spall2011Parameters, SpallDDParameters
+export DoubleGyreParameters, Spall2011Parameters, SpallDGParameters
 export SimulationConfiguration
 export EastwardVelocity, NorthwardVelocity, UpwardVelocity
 export Salinity, Temperature
@@ -80,7 +80,7 @@ include("models.jl")
 include("simulations.jl")
 include("utils.jl")
 include("double_gyre.jl")
-include("spall_2011.jl")
+#include("spall_2011.jl")
 include("spall_double_gyre.jl")
 
 end
