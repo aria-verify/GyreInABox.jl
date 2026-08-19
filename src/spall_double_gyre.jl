@@ -26,7 +26,7 @@ $(TYPEDFIELDS)
     "Dimensions of grid halo region in x, y and depth"
     halo_size::NTuple{3,Int} = (7, 7, 4)
     "β-plane Coriolis offset parameters / s⁻¹"
-    coriolis_offset::T = 1.2e-4
+    coriolis_offset::T = 1.19e-4
     "β-plane Coriolis coefficient parameter / m⁻¹s⁻¹"
     coriolis_coefficient::T = 2e-11
     "Zonal wind stress amplitue / N m⁻²"
@@ -60,9 +60,9 @@ $(TYPEDFIELDS)
     "Northern boundary surface temperature / °C"
     northern_surface_temperature::T = 2.0
     "Distance north along western boundary that surface temperature reaches limit / m"
-    north_western_temperature_limit_distance::T = 840kilometer
+    north_western_temperature_limit_distance::T = 2000kilometer
     "Southern boundary surface temperature / °C"
-    southern_surface_temperature::T = 10.0
+    southern_surface_temperature::T = 20.0
     "Southern region temperature (and salinity) relaxation time scale / s"
     southern_region_relaxation_time::T = 20day
     "Southern region extent / m"
@@ -78,17 +78,17 @@ $(TYPEDFIELDS)
     "Depth of bottom of domain (most negative z) / m"
     bottom_depth::T = -4kilometers
     "Location of center of sill on sea floor along y dimension / m"
-    sill_center_y::T = 1200kilometers
+    sill_center_y::T = 3000kilometers
     "Width of sill on sea floor / m"
     sill_width::T = 400kilometers
     "Height of sill on sea floor / m"
     sill_height::T = 1kilometers
     "Width of slope on side walls of domain / m"
-    side_slope_width::T = 140kilometers
+    side_slope_width::T = 100kilometers
     "Depth at which slope on side walls starts / m"
-    side_slope_top_depth::T = 50meters
+    side_slope_top_depth::T = -250meters
     "Width of slope on top wall of domain / m"
-    top_slope_width::T = 20kilometers
+    top_slope_width::T = 100kilometers
     "Whether to use CATKE rather than scalar vertical diffusivity turbulence closure"
     use_catke_closure::Bool = false
     "Whether to include a dynamic Smagorinsky closure as a parameterization for eddy viscosity and diffusivity"
@@ -151,22 +151,24 @@ function sill_profile(y, center, width, height)
     height * cospi((y - center) / width)^2
 end
 
-function side_wall_profile(x, width, height)
+function side_wall_profile(x, width, height, parameters::SpallDGParameters)
     x < width ? height * (1 - (x / width)) : 0
+    #x < width ? height * (1 - (x / width)) : parameters.side_slope_top_depth
 end
 
 function two_basin_bathymetry(x, y, parameters::SpallDGParameters)
     depth = parameters.bottom_depth
-    northern_basin_radius = parameters.domain_size_x / 2
-    sill_northern_limit = parameters.sill_center_y + parameters.sill_width / 2
-    sill_southern_limit = parameters.sill_center_y - parameters.sill_width / 2
-    if y > parameters.domain_size_y - northern_basin_radius
+    northern_basin_radius = parameters.domain_size_x / 2 - parameters.top_slope_width
+    northern_basin_extent = parameters.domain_size_x / 2
+    #sill_northern_limit = parameters.sill_center_y + parameters.sill_width / 2
+    #sill_southern_limit = parameters.sill_center_y - parameters.sill_width / 2
+    if y > parameters.domain_size_y - northern_basin_extent
         # in northern basin rounded region
-        x_basin = x - northern_basin_radius
-        y_basin = y - (parameters.domain_size_y - northern_basin_radius)
+        x_basin = x - northern_basin_extent
+	y_basin = y - (parameters.domain_size_y - northern_basin_extent)
         r_basin = sqrt(x_basin^2 + y_basin^2)
-        if r_basin > northern_basin_radius
-            depth = 0
+        if r_basin > northern_basin_radius 
+            depth = parameters.side_slope_top_depth
         else
             depth += side_wall_profile(
                 northern_basin_radius - r_basin,
@@ -174,28 +176,33 @@ function two_basin_bathymetry(x, y, parameters::SpallDGParameters)
                 (x_basin / r_basin)^2 *
                 (parameters.side_slope_width - parameters.top_slope_width),
                 parameters.side_slope_top_depth - parameters.bottom_depth,
+		parameters
             )
         end
-    elseif y > sill_southern_limit && y < sill_northern_limit
-        # in sill region
-        sill_height = sill_profile.(
-            y, parameters.sill_center_y, parameters.sill_width, parameters.sill_height
-        )
-        x_boundary = min(x, parameters.domain_size_x - x)
-        side_slope_height = side_wall_profile(
-            x_boundary,
-            parameters.side_slope_width,
-            parameters.side_slope_top_depth - parameters.bottom_depth,
-        )
-        depth += max(sill_height, side_slope_height)
+    #elseif y > sill_southern_limit && y < sill_northern_limit
+    #    # in sill region
+    #    sill_height = sill_profile.(
+    #        y, parameters.sill_center_y, parameters.sill_width, parameters.sill_height
+    #    )
+    #    x_boundary = min(x, parameters.domain_size_x - x)
+    #    side_slope_height = side_wall_profile(
+    #        x_boundary,
+    #        parameters.side_slope_width,
+    #        parameters.side_slope_top_depth - parameters.bottom_depth,
+    #    )
+    #    depth += max(sill_height, side_slope_height)
     else
         # in southern basin or non-rounded northern basin region
+        #x_boundary = parameters.domain_size_x - x
         x_boundary = min(x, parameters.domain_size_x - x)
-        if x_boundary < parameters.side_slope_width
+        if x_boundary < parameters.side_slope_width 
+            depth = parameters.side_slope_top_depth
+        elseif x_boundary < parameters.side_slope_width*2# && x_boundary > parameters.side_slope_width
             depth += side_wall_profile(
-                x_boundary,
+                x_boundary - parameters.side_slope_width,
                 parameters.side_slope_width,
                 parameters.side_slope_top_depth - parameters.bottom_depth,
+        	parameters
             )
         end
     end
@@ -231,15 +238,16 @@ end
     )
 end
 
-@inline surface_evaporation_minus_precipitation(y, p::SpallDGParameters) = (
-    y > p.sill_center_y ? p.northern_basin_surface_evaporation : 0.0
+@inline surface_evaporation_minus_precipitation(x, y, p::SpallDGParameters) = (
+    two_basin_bathymetry(x, y, p) >= p.side_slope_top_depth ? p.northern_basin_surface_evaporation : 0.0
 )
 
 @inline function surface_salinity_flux(
     i, j, grid, clock, model_fields, p::SpallDGParameters
 )
+    x = xnode(i, j, 1, grid, Center(), Center(), Center())
     y = ynode(i, j, 1, grid, Center(), Center(), Center())
-    @inbounds -model_fields.S[i, j, grid.Nz] * surface_evaporation_minus_precipitation(y, p)
+    @inbounds -model_fields.S[i, j, grid.Nz] * surface_evaporation_minus_precipitation(x, y, p)
 end
 
 @inline function southern_region_mask(x, y, z, p::SpallDGParameters)
@@ -453,9 +461,9 @@ function plot_domain_and_forcing(
         aspect,
         ylabel,
     )
-    c1 = contourf!(ax1, -grid.immersed_boundary.bottom_height; colormap=:deep)
+    c1 = contourf!(ax1, -grid.immersed_boundary.bottom_height; colormap=:deep, levels=range(0,5000, length=41))
     Colorbar(figure[1, 2], c1)
-    c2 = contourf!(ax2, temperature_field; colormap=:thermal, levels=2:11)
+    c2 = contourf!(ax2, temperature_field; colormap=:thermal, levels=2:21)
     Colorbar(figure[1, 4], c2)
     y = ynodes(grid, Face())
     lines!(
@@ -465,7 +473,22 @@ function plot_domain_and_forcing(
         ),
         y,
     )
-    lines!(ax4, surface_evaporation_minus_precipitation.(y, (parameters,)), y)
+    x = xnodes(grid, Face())
+    Z = [
+    surface_evaporation_minus_precipitation(xi, yi, parameters)
+    for yi in y, xi in x
+    ]
+
+    c4 = contourf!(
+        ax4,
+        x,
+        y,
+        Z';
+        colormap = :thermal
+    )
+
+    #c4 = contourf!(ax4, surface_evaporation_minus_precipitation(x, y, parameters); colormap=:thermal)
+    Colorbar(figure[1, 7], c4)
     resize_to_layout!(figure)
     figure
 end

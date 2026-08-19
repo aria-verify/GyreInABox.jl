@@ -26,10 +26,6 @@ function parse_commandline()
             help = "Surface net evaporation-precipitation in northern basin above sill / m s⁻¹"
             arg_type = Float64
             default = -2e-8
-        "--sill-height", "-H"
-            help = "Sill height / m"
-            arg_type = Float64
-            default = 1000.0
         "--simulation-years", "-Y"
             help = "Number of simulated year to run for"
             arg_type = Float64
@@ -42,7 +38,7 @@ function parse_commandline()
             help = "Grid dimensions in x, y and depth"
             nargs = 3
             arg_type = Int
-            default = [200, 400, 30]
+            default = [400, 600, 30]
         "--free-surface-substeps", "-S"
             help = "Number of substeps to use in split-explicit free surface scheme (defaults to adaptive if not specified)"
             arg_type = Int
@@ -122,7 +118,6 @@ function main()
         wizard_max_change=1.1,
         wizard_update_interval=10,
         output_directory=output_directory,
-        output_filename_stem="spall_2012_gyre_model",
         output_types=(
             horizontal_slice_output(; depth=0.0, schedule=snapshot_schedule),
             horizontal_slice_output(;
@@ -136,10 +131,10 @@ function main()
                 x_or_longitude=(parameters.domain_size_x / 2), schedule=snapshot_schedule
             ),
             free_surface_output(; schedule=snapshot_schedule),
-            stream_functions_output(; schedule=average_schedule),
             moc_strength_at_y_output(;
                 y_or_latitude=parameters.sill_center_y, schedule=average_schedule
             ),
+            stream_functions_output(; schedule=average_schedule),
             northward_heat_transport_at_y_output(;
                 y_or_latitude=parameters.sill_center_y, schedule=average_schedule
             ),
@@ -148,6 +143,7 @@ function main()
             ),
             horizontally_averaged_output(; mask=mask, schedule=average_schedule),
         ),
+        output_filename_stem="spall_2012_gyre_model",
         progress_message_interval=1000,
         pickup_checkpoint=args["pickup-checkpoint"],
         output_writer_type=_OUTPUT_WRITER_TYPES[args["output-format"]],

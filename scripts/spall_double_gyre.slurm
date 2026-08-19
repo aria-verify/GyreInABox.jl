@@ -14,6 +14,9 @@ module load rocm
 module load craype-accel-amd-gfx90a
 module load craype-x86-milan
 
+export GPU_SYNC=1
+export OMP_NUM_THREADS=1
+
 export WORK=/work/n02/n02/ryapat30/
 
 export JULIA="$WORK/julia-1.12.6/bin/julia"  # The julia executable
@@ -28,14 +31,14 @@ export MPIEXECJL="$JULIA_DEPOT_PATH/bin/mpiexecjl"  # The path to the mpiexexjl 
 
 TEMPERATURE_RESTORING=20.0
 SURFACE_EVAPORATION=-9.25e-8
-SIMULATION_YEARS=0.2
-OUTPUT_INTERVAL_DAYS=30
+SIMULATION_YEARS=1
+OUTPUT_INTERVAL_YEARS=30
 PLOT_START_TIME_DAYS=1800  # Needs to be a multiple of OUTPUT_INTERVAL_DAYS
-PLOT_END_TIME_DAYS=$((SIMULATION_YEARS * 365))
-OUTPUT_FORMAT=JLD2
+PLOT_END_TIME_DAYS=$((SIMULATION_YEARS*365))
+OUTPUT_FORMAT=NetCDF
 SILL_HEIGHT=0
 #GRID="40 60 40"
-GRID="10 10 10"
+#GRID="10 10 10"
 
 #PROJECT_DIR=$PROJECTDIR/ryapat/GyreInABox.jl
 #EXPERIMENT_DIR=$SCRATCH/$SLURM_JOB_NAME/job-$SLURM_JOB_ID
@@ -61,17 +64,17 @@ cp $POST_PROCESS_SCRIPT_PATH $EXPERIMENT_DIR
 
 # Run simulation outputting to experiment directory
 
-echo "Running simulation for $SIMULATION_YEARS years..."
+echo "Running simulation for $SIMULATION_DAYS years..."
 
 julia --project=$SCRIPTS_DIR $RUN_SCRIPT_PATH \
     -R $TEMPERATURE_RESTORING -E $SURFACE_EVAPORATION \
-    -Y $SIMULATION_YEARS -I $OUTPUT_INTERVAL_DAYS -O $EXPERIMENT_DIR \
+    -Y $SIMULATION_DAYS -I $OUTPUT_INTERVAL_DAYS -O $EXPERIMENT_DIR \
     -F $OUTPUT_FORMAT -H $SILL_HEIGHT -G $GRID
 
 # Post process simulation outputs in experiment directory
 
-echo "Post processing simulation outputs..."
-
-julia --project=$SCRIPTS_DIR $POST_PROCESS_SCRIPT_PATH $EXPERIMENT_DIR \
-    -t $PLOT_START_TIME_DAYS $OUTPUT_INTERVAL_DAYS $PLOT_END_TIME_DAYS
-
+#echo "Post processing simulation outputs..."
+#
+#julia --project=$SCRIPTS_DIR $POST_PROCESS_SCRIPT_PATH $EXPERIMENT_DIR \
+#    -t $PLOT_START_TIME_DAYS $OUTPUT_INTERVAL_DAYS $PLOT_END_TIME_DAYS
+#
