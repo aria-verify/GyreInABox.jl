@@ -1,16 +1,17 @@
 #!/bin/bash
 # Slurm job options (job-name, compute nodes, job time)
-#SBATCH --job-name=oceananigans
+#SBATCH --job-name=double_gyre
 #SBATCH --time=02:00:00
 
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=1
 
-#SBATCH --qos=serial
+#SBATCH --qos=standard
 
-#SBATCH --account=n02-VERIFY
-#SBATCH --partition=serial
+#SBATCH --account=n02-SMBGEN2
+#SBATCH --partition=standard
+##BATCH --mem=128GB
 
 # Setup the job environment (this module needs to be loaded before any other modules)
 module load PrgEnv-cray
@@ -57,7 +58,8 @@ julia --project=$WORK/Oceananigans_clean/projects/GyreInABox.jl/scripts \
 		-O $EXPERIMENT_DIR \
 	       	-R 20.\
 	       	-E -9.25e-8 \
-	       	-G 400 600 40 \
+	       	-G 40 60 40 \
 	       	-Y 1 \
                 -F NetCDF \
-	       	--cpu
+	       	--cpu 
+                #--threads=128

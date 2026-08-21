@@ -39,7 +39,7 @@ function parse_commandline()
             help = "Grid dimensions in x, y and depth"
             nargs = 3
             arg_type = Int
-            default = [400, 600, 30]
+            default = [40, 60, 30]
         "--free-surface-substeps", "-S"
             help = "Number of substeps to use in split-explicit free surface scheme (defaults to adaptive if not specified)"
             arg_type = Int

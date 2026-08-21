@@ -84,11 +84,11 @@ $(TYPEDFIELDS)
     "Height of sill on sea floor / m"
     sill_height::T = 1kilometers
     "Width of slope on side walls of domain / m"
-    side_slope_width::T = 100kilometers
+    side_slope_width::T = 250kilometers
     "Depth at which slope on side walls starts / m"
     side_slope_top_depth::T = -250meters
     "Width of slope on top wall of domain / m"
-    top_slope_width::T = 100kilometers
+    top_slope_width::T = 250kilometers
     "Whether to use CATKE rather than scalar vertical diffusivity turbulence closure"
     use_catke_closure::Bool = false
     "Whether to include a dynamic Smagorinsky closure as a parameterization for eddy viscosity and diffusivity"
