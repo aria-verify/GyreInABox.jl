@@ -55,6 +55,12 @@ $(TYPEDFIELDS)
     reference_salinity::T = 35.0
     "Surface net evaporation-precipitation (salinity flux coefficient) in northern basin above sill / m s⁻¹"
     northern_basin_surface_evaporation::T = -2e-8
+    "Time to start triangular ramp of surface net evaporation-precipitation in northern basin above sill / s"
+    northern_basin_surface_evaporation_ramp_start::T = 0.0
+    "Time to end triangular ramp of surface net evaporation-precipitation in northern basin above sill / s"
+    northern_basin_surface_evaporation_ramp_end::T = 0.0
+    "Maximum change in surface net evaporation-precipitation in northern basin above sill during triangular ramp / m s⁻¹"
+    northern_basin_surface_evaporation_ramp_delta::T = 0.0
     "Northern boundary surface temperature / °C"
     northern_surface_temperature::T = 2.0
     "Distance north along western boundary that surface temperature reaches limit / m"
@@ -199,15 +205,21 @@ end
     )
 end
 
-@inline surface_evaporation_minus_precipitation(y, p::Spall2011Parameters) = (
-    y > p.sill_center_y ? p.northern_basin_surface_evaporation : 0.0
-)
+@inline function surface_evaporation_minus_precipitation(y, t, p::Spall2011Parameters)
+    y <= p.sill_center_y && return 0.0
+    E_0 = p.northern_basin_surface_evaporation
+    ΔE = p.northern_basin_surface_evaporation_ramp_delta
+    Δt = (p.northern_basin_surface_evaporation_ramp_end - p.northern_basin_surface_evaporation_ramp_start) / 2
+    t_0 = p.northern_basin_surface_evaporation_ramp_start
+    return triangular_ramp(t, t_0, Δt, E_0, ΔE)
+end
 
 @inline function surface_salinity_flux(
     i, j, grid, clock, model_fields, p::Spall2011Parameters
 )
+    t = clock.time
     y = ynode(i, j, 1, grid, Center(), Center(), Center())
-    @inbounds -model_fields.S[i, j, grid.Nz] * surface_evaporation_minus_precipitation(y, p)
+    @inbounds -model_fields.S[i, j, grid.Nz] * surface_evaporation_minus_precipitation(y, t, p)
 end
 
 @inline function southern_region_mask(x, y, z, p::Spall2011Parameters)
