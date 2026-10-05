@@ -41,12 +41,12 @@ linearly ramping from `y_0` to `y_0 + Δy` for `t_0 <= t < t_0 + Δt` and linear
 from `y_0 + Δy` to `y_0` for `t_0 + Δt <= t < t_0 + 2Δt`.
 """
 function triangular_ramp(t, t_0, Δt, y_0, Δy)
-    if t_0 <= t < t_0 + Δt
-        y_0 + Δy * (t - t_0) / Δt
-    elseif t_0 + Δt <= t < t_0 + 2Δt
-        y_0 + Δy - Δy * (t - Δt - t_0) / Δt
-    else
+    if t >= t_0 + 2Δt || t < t_0
         y_0
+    elseif t < t_0 + Δt
+        y_0 + Δy * (t - t_0) / Δt
+    else
+        y_0 + Δy - Δy * (t - Δt - t_0) / Δt
     end
 end
 
