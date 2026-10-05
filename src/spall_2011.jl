@@ -368,12 +368,12 @@ function initialize!(model::Oceananigans.AbstractModel, parameters::Spall2011Par
 end
 
 function plot_domain_and_forcing(
-    parameters::Spall2011Parameters; axis_height::Int=600, axis_width::Int=400
+    parameters::Spall2011Parameters; axis_height::Int=600, axis_width::Int=400, font_size::Int=12,
 )
     grid = GyreInABox.grid(parameters, CPU())
     temperature_field = CenterField(grid; indices=(:, :, grid.Nz))
     set!(temperature_field, (x, y, z) -> reference_surface_temperature(x, y, parameters))
-    figure = Figure(; size=(axis_width * 4, axis_height), fontsize=12)
+    figure = Figure(; size=(axis_width * 4, axis_height), fontsize=font_size, titlegap=6)
     aspect = AxisAspect(parameters.domain_size_x / parameters.domain_size_y)
     xlabel = "x / m"
     ylabel = "y / m"
@@ -390,11 +390,12 @@ function plot_domain_and_forcing(
     ax3 = Axis(figure[1, 5]; title="Surface zonal velocity flux / m² s⁻²", aspect, ylabel)
     ax4 = Axis(
         figure[1, 6];
-        title="Surface net evaporation - precipitation / m s⁻¹",
+        title="Surface salinity flux / m s⁻¹",
         aspect,
         ylabel,
+        xticks=[0, parameters.northern_basin_surface_evaporation],
     )
-    c1 = contourf!(ax1, -grid.immersed_boundary.bottom_height; colormap=:deep)
+    c1 = contourf!(ax1, -bottom_height_field(grid); colormap=:deep)
     Colorbar(figure[1, 2], c1)
     c2 = contourf!(ax2, temperature_field; colormap=:thermal, levels=2:11)
     Colorbar(figure[1, 4], c2)
