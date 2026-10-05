@@ -36,6 +36,21 @@ function smooth_step(d)
 end
 
 """
+Piecewise linear function, with constant value `y_0` for `t < t_0` and `t >= t_0 + 2Δt`,
+linearly ramping from `y_0` to `y_0 + Δy` for `t_0 <= t < t_0 + Δt` and linearly ramping
+from `y_0 + Δy` to `y_0` for `t_0 + Δt <= t < t_0 + 2Δt`.
+"""
+function triangular_ramp(t, t_0, Δt, y_0, Δy)
+    if t >= t_0 + 2Δt || t < t_0
+        y_0
+    elseif t < t_0 + Δt
+        y_0 + Δy * (t - t_0) / Δt
+    else
+        y_0 + Δy - Δy * (t - Δt - t_0) / Δt
+    end
+end
+
+"""
 $(TYPEDEF)
 
 Mask for horizontal circular region with center at `(x_center, y_center)`
