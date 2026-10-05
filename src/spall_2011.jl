@@ -227,7 +227,7 @@ end
 )
     surface_temperature +
     z * p.sea_water_density * p.vertical_stratification /
-    (p.thermal_expansion_coefficient * Oceananigans.defaults.gravitational_acceleration)
+    (p.thermal_expansion_coefficient * gravitational_acceleration)
 end
 
 @inline function southern_region_temperature_target(x, y, z, t, p::Spall2011Parameters)
