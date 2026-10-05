@@ -23,9 +23,21 @@ function parse_commandline()
             arg_type = Float64
             default = 20.0
         "--northern-basin-surface-evaporation", "-E"
-            help = "Surface net evaporation-precipitation in northern basin above sill / m s⁻¹"
+            help = "Reference surface net evaporation (salinity flux) in northern basin above sill / m s⁻¹"
             arg_type = Float64
             default = -2e-8
+        "--northern-basin-surface-evaporation-delta", "-D"
+            help = "Max change in surface salinity flux in northern basin during triangular ramp / m s⁻¹"
+            arg_type = Float64
+            default = -10e-8
+        "--ramp-start-years"
+            help = "Start time for triangular ramp of surface salinity flux in northern basin / years"
+            arg_type = Float64
+            default = 25.0
+        "--ramp-end-years"
+            help = "End time for triangular ramp of surface salinity flux in northern basin / years"
+            arg_type = Float64
+            default = 75.0
         "--sill-height", "-H"
             help = "Sill height / m"
             arg_type = Float64
@@ -100,6 +112,9 @@ function main()
         grid_size=Tuple(args["grid-size"]),
         surface_temperature_restoring_strength=args["surface-temperature-restoring-strength"],
         northern_basin_surface_evaporation=args["northern-basin-surface-evaporation"],
+        northern_basin_surface_evaporation_ramp_delta=args["northern-basin-surface-evaporation-delta"],
+        northern_basin_surface_evaporation_ramp_start=args["ramp-start-years"]*365day,
+        northern_basin_surface_evaporation_ramp_end=args["ramp-end-years"]*365day,
         sill_height=args["sill-height"],
         use_eddy_closure=args["use-eddy-closure"],
         split_explicit_free_surface_substeps=args["free-surface-substeps"],
