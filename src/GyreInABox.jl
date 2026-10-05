@@ -71,6 +71,8 @@ export setup_model, initialize!, setup_simulation
 export AnimationPlotOutput, TemporalAveragePlotOutput, TimeSeriesPlotOutput
 export run_simulation, plot_outputs
 
+const gravitational_acceleration = 9.80665
+
 include("variables.jl")
 include("dimensions.jl")
 include("processors.jl")
