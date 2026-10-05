@@ -6,9 +6,10 @@
 [![Coverage](https://codecov.io/gh/aria-verify/GyreInABox.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/aria-verify/GyreInABox.jl)
 [![Aqua](https://raw.githubusercontent.com/JuliaTesting/Aqua.jl/master/badge.svg)](https://github.com/JuliaTesting/Aqua.jl)
 
-Oceananigans based model of an ocean gyre in a bounded domain.
+[Oceananigans](https://github.com/CliMA/Oceananigans.jl) based idealized models of ocean gyres in a bounded domain.
 
-Model of wind and buoyancy forced ocean gyre adapted from MITgcm
-[baroclinic ocean gyre example from documentation](
-https://mitgcm.readthedocs.io/en/latest/examples/baroclinic_gyre/baroclinic_gyre.html)
-implemented using [Oceananigans](https://github.com/CliMA/Oceananigans.jl).
+Currently two configurations are supported
+- A model of wind and buoyancy forced ocean gyre adapted from the MITgcm [baroclinic ocean gyre example from documentation](https://mitgcm.readthedocs.io/en/latest/examples/baroclinic_gyre/baroclinic_gyre.html).
+- An idealized model of the subpolar gyre with surface wind, temperature and salinity forcing and simplified topography with a northern basin separated from a southern open ocean region, based on the model described in [Spall (2011)](https://doi.org/10.1175/2011JCLI4130.1) and [Spall (2012)](https://doi.org/10.1175/JPO-D-11-0230.1).
+
+A simple shared model interface is defined, with model-agnostic simulation driver, output handling and plotting built on top of this.
