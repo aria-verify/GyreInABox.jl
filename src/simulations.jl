@@ -114,7 +114,7 @@ function add_output_writers!(
             dir=output_directory,
             indices=indices(output, grid),
             schedule=schedule(output),
-            overwrite_existing=true,
+            overwrite_files=true,
             with_halos=false,
             kwargs...,
         )
