@@ -4,7 +4,8 @@ using JLD2
 using Oceananigans
 using Oceananigans.DistributedComputations
 using Oceananigans.Units
-using AMDGPU
+#using AMDGPU
+using CUDA
 using MPI
 using NCDatasets
 using Zarr
@@ -79,7 +80,8 @@ function main()
 
     @onrank 0 @info "Parsed args\n  " * join(("$arg = $val" for (arg, val) in args), "\n  ")
 
-    architecture = args["cpu"] ? CPU() : GPU(AMDGPU.ROCBackend())
+    #architecture = args["cpu"] ? CPU() : GPU(AMDGPU.ROCBackend())
+    architecture = args["cpu"] ? CPU() : GPU()
 
     if args["mpi"]
         partition = Partition(; x=args["ranks-along-x"], y=Equal())
@@ -96,7 +98,6 @@ function main()
         grid_size=Tuple(args["grid-size"]),
         surface_temperature_restoring_strength=args["surface-temperature-restoring-strength"],
         northern_basin_surface_evaporation=args["northern-basin-surface-evaporation"],
-        sill_height=args["sill-height"],
         use_eddy_closure=args["use-eddy-closure"],
         split_explicit_free_surface_substeps=args["free-surface-substeps"],
     )
@@ -121,7 +122,7 @@ function main()
         output_types=(
             horizontal_slice_output(; depth=0.0, schedule=snapshot_schedule),
             horizontal_slice_output(;
-                depth=(parameters.bottom_depth + parameters.sill_height),
+                depth=(parameters.bottom_depth),
                 schedule=TimeInterval(output_interval),
             ),
             x_depth_slice_output(;
