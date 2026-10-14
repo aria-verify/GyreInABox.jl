@@ -112,17 +112,17 @@ end
 function zonal_surface_wind_stress(x, y, t, parameters::Spall2011Parameters)
     (parameters.zonal_wind_stress / parameters.sea_water_density) *
     smooth_step(t / parameters.surface_wind_forcing_ramp_up_timescale) *
-    cospi(y / parameters.domain_size_y)
+    cos(π * y / parameters.domain_size_y)
 end
 
 function meridional_surface_wind_stress(x, y, t, parameters::Spall2011Parameters)
     (parameters.meridional_wind_stress / parameters.sea_water_density) *
     smooth_step(t / parameters.surface_wind_forcing_ramp_up_timescale) *
-    cospi(x / parameters.domain_size_x)
+    cos(π * x / parameters.domain_size_x)
 end
 
 function sill_profile(y, center, width, height)
-    height * cospi((y - center) / width)^2
+    height * cos(π * (y - center) / width)^2
 end
 
 function side_wall_profile(x, width, height)
