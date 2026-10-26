@@ -25,13 +25,13 @@ end
 Smooth piecewise defined step function that is zero for negative `d`, one for `d > 1`
 and smoothly interpolates between these values for `0 ≤ d ≤ 1`.
 """
-function smooth_step(d)
+function smooth_step(d::T) where {T}
     if d < 0.0
-        0
+        zero(T)
     elseif d < 1
         3d^2 - 2d^3
     else
-        1.0
+        one(T)
     end
 end
 
@@ -40,7 +40,7 @@ Piecewise linear function, with constant value `y_0` for `t < t_0` and `t >= t_0
 linearly ramping from `y_0` to `y_0 + Δy` for `t_0 <= t < t_0 + Δt` and linearly ramping
 from `y_0 + Δy` to `y_0` for `t_0 + Δt <= t < t_0 + 2Δt`.
 """
-function triangular_ramp(t, t_0, Δt, y_0, Δy)
+function triangular_ramp(t::T, t_0::T, Δt::T, y_0::T, Δy::T) where {T}
     if t >= t_0 + 2Δt || t < t_0
         y_0
     elseif t < t_0 + Δt

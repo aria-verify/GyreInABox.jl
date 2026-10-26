@@ -109,13 +109,13 @@ $(TYPEDFIELDS)
     split_explicit_free_surface_substeps::S = nothing 
 end
 
-function zonal_surface_wind_stress(x, y, t, parameters::Spall2011Parameters)
+function zonal_surface_wind_stress(x::T, y::T, t::T, parameters::Spall2011Parameters{T, S}) where {T, S}
     (parameters.zonal_wind_stress / parameters.sea_water_density) *
     smooth_step(t / parameters.surface_wind_forcing_ramp_up_timescale) *
-    cos(π * y / parameters.domain_size_y)
+    cos(T(π) * y / parameters.domain_size_y)
 end
 
-function meridional_surface_wind_stress(x, y, t, parameters::Spall2011Parameters)
+function meridional_surface_wind_stress(x::T, y::T, t::T, parameters::Spall2011Parameters{T, S}) where {T, S}
     (parameters.meridional_wind_stress / parameters.sea_water_density) *
     smooth_step(t / parameters.surface_wind_forcing_ramp_up_timescale) *
     cos(π * x / parameters.domain_size_x)
@@ -205,11 +205,11 @@ end
     )
 end
 
-@inline function surface_evaporation_minus_precipitation(y, t, p::Spall2011Parameters)
-    y <= p.sill_center_y && return 0.0
+@inline function surface_evaporation_minus_precipitation(y::T, t::T, p::Spall2011Parameters{T, S}) where {T, S}
+    y <= p.sill_center_y && return zero(T)
     E_0 = p.northern_basin_surface_evaporation
     ΔE = p.northern_basin_surface_evaporation_ramp_delta
-    Δt = (p.northern_basin_surface_evaporation_ramp_end - p.northern_basin_surface_evaporation_ramp_start) / 2
+    Δt = (p.northern_basin_surface_evaporation_ramp_end - p.northern_basin_surface_evaporation_ramp_start) / T(2)
     t_0 = p.northern_basin_surface_evaporation_ramp_start
     return triangular_ramp(t, t_0, Δt, E_0, ΔE)
 end
@@ -222,27 +222,27 @@ end
     @inbounds -model_fields.S[i, j, grid.Nz] * surface_evaporation_minus_precipitation(y, t, p)
 end
 
-@inline function southern_region_mask(x, y, z, p::Spall2011Parameters)
+@inline function southern_region_mask(x::T, y::T, z::T, p::Spall2011Parameters{T, S}) where {T, S}
     if p.southern_boundary_window_width == 0
-        y < p.southern_region_extent
+        T(y < p.southern_region_extent)
     else
         # Use a smooth step function at boundary of mask
         # Distance from boundary normalized by window width and offset by 0.5 as
         # smooth_step interopolates from 0 to 1 over (0, 1) interval
-        d = (p.southern_region_extent - y) / p.southern_boundary_window_width + 0.5
+        d = (p.southern_region_extent - y) / p.southern_boundary_window_width + T(0.5)
         smooth_step(d)
     end
 end
 
 @inline function vertically_stratified_temperature(
-    z, surface_temperature, p::Spall2011Parameters
-)
+    z::T, surface_temperature::T, p::Spall2011Parameters{T, S}
+) where {T, S}
     surface_temperature +
     z * p.sea_water_density * p.vertical_stratification /
-    (p.thermal_expansion_coefficient * gravitational_acceleration)
+    (p.thermal_expansion_coefficient * T(gravitational_acceleration))
 end
 
-@inline function southern_region_temperature_target(x, y, z, t, p::Spall2011Parameters)
+@inline function southern_region_temperature_target(x::T, y::T, z::T, t::T, p::Spall2011Parameters{T, S}) where {T, S}
     vertically_stratified_temperature(z, p.southern_surface_temperature, p)
 end
 
