@@ -1,5 +1,5 @@
 """
-Get properties for customizing plot axis rendering for `variable` with 
+Get properties for customizing plot axis rendering for `variable` with
 `processor` on `grid` and `times`.
 
 $(SIGNATURES)
@@ -7,11 +7,12 @@ $(SIGNATURES)
 function axis_properties(variable::AbstractModelVariable, processor, grid, times)
     dimensions = spatial_dimensions(variable, processor)
     (
-        xlabel=axis_xlabel(dimensions, grid),
-        ylabel=axis_ylabel(dimensions, grid),
-        aspect=axis_aspect_ratio(dimensions),
-        limits=(
-            axis_xlimits(dimensions, grid, times), axis_ylimits(dimensions, grid, times)
+        xlabel = axis_xlabel(dimensions, grid),
+        ylabel = axis_ylabel(dimensions, grid),
+        aspect = axis_aspect_ratio(dimensions),
+        limits = (
+            axis_xlimits(dimensions, grid, times),
+            axis_ylimits(dimensions, grid, times),
         ),
     )
 end
@@ -53,8 +54,8 @@ function setup_figure(n_rows, n_columns, axis_width, axis_height, title_height)
         # CairoMakie defaults to px_per_unit=2 so manually adjust figure size here to
         # account for this - this is done in preference to changing px_per_unit using
         # CairoMakie.activate! to avoid persisting change after function exit
-        size=(axis_width * n_columns / 2, (axis_height * n_rows + title_height) / 2),
-        fontsize=12,
+        size = (axis_width * n_columns / 2, (axis_height * n_rows + title_height) / 2),
+        fontsize = 12,
     )
 end
 
@@ -94,7 +95,7 @@ function get_title end
     )
 
 Saves plot file output for `plot_output` and `model_output` visualized on
-Makie figure `fig` with model outputs recorded to a file in directory 
+Makie figure `fig` with model outputs recorded to a file in directory
 `output_directory` and with stem `output_filename_stem`, optionally
 using simulation times `times` and observable `time_index`.
 
@@ -139,7 +140,7 @@ function plot_field_on_axis!(
     limits::Tuple{<:Real,<:Real},
 )
     field = @lift field_timeseries[$time_index]
-    heatmap!(axis, field; colormap=color_map(variable), colorrange=limits)
+    heatmap!(axis, field; colormap = color_map(variable), colorrange = limits)
 end
 
 function get_title(::AnimationPlotOutput, time_index, times)
@@ -158,11 +159,12 @@ function save_output(
     frames = 1:plot_output.frame_step:length(times)
 
     output_file = joinpath(
-        output_directory, output_filename(output_filename_stem, model_output, "mp4")
+        output_directory,
+        output_filename(output_filename_stem, model_output, "mp4"),
     )
     @info "Recording an animation of $(label(model_output)) to $(output_file)..."
 
-    CairoMakie.record(fig, output_file, frames; framerate=plot_output.frame_rate) do i
+    CairoMakie.record(fig, output_file, frames; framerate = plot_output.frame_rate) do i
         (i % 10 == 0) && @printf "Plotting frame %i of %i\n" i frames[end]
         time_index[] = i
     end
@@ -201,8 +203,8 @@ function plot_field_on_axis!(
     ::Tuple{<:Real,<:Real},
 )
     # mean(field_timeseries, dims=4) errors on Oceananigans v105.2 so manually construct mean
-    mean_field = sum(field_timeseries; dims=4) / length(field_timeseries)
-    contourf!(axis, mean_field; colormap=color_map(variable), levels=plot_output.levels)
+    mean_field = sum(field_timeseries; dims = 4) / length(field_timeseries)
+    contourf!(axis, mean_field; colormap = color_map(variable), levels = plot_output.levels)
 end
 
 function get_title(::TemporalAveragePlotOutput, time_index, times)
@@ -220,7 +222,8 @@ function save_output(
 )
     save(
         joinpath(
-            output_directory, output_filename(output_filename_stem, model_output, "svg")
+            output_directory,
+            output_filename(output_filename_stem, model_output, "svg"),
         ),
         fig,
     )
@@ -264,7 +267,7 @@ function plot_field_on_axis!(
         (i, s) in enumerate(spatial_dims)
     )
     if dim_x == dim_y == dim_z == 1
-        lines!(axis, times, [field_timeseries[i][indices...] for i in 1:length(times)])
+        lines!(axis, times, [field_timeseries[i][indices...] for i = 1:length(times)])
         nothing
     else
         free_dimension_values = if dim_x > 1 && dim_y == dim_z == 1
@@ -278,9 +281,9 @@ function plot_field_on_axis!(
             axis,
             times,
             free_dimension_values,
-            hcat((interior(field_timeseries[i])[indices...] for i in 1:length(times))...)';
-            colormap=color_map(variable),
-            levels=plot_output.levels,
+            hcat((interior(field_timeseries[i])[indices...] for i = 1:length(times))...)';
+            colormap = color_map(variable),
+            levels = plot_output.levels,
         )
     end
 end
@@ -298,7 +301,8 @@ function save_output(
 )
     save(
         joinpath(
-            output_directory, output_filename(output_filename_stem, model_output, "svg")
+            output_directory,
+            output_filename(output_filename_stem, model_output, "svg"),
         ),
         fig,
     )
@@ -325,8 +329,8 @@ each field heatmap of size `(axis_width, axis_height)` in pixels and a further `
 pixels allowed at the top of the figure for a title.
 
 By default the value limits for each field variable are automatically computed from
-the extrema of the field data but these can be overridden by passing a named tuple 
-`variable_limits` with keys corresponding to the variable (short) names to override. 
+the extrema of the field data but these can be overridden by passing a named tuple
+`variable_limits` with keys corresponding to the variable (short) names to override.
 Specific variables to exclude from plot can be specified in a tuple of variable names
 `exclude_variables`.
 
@@ -341,15 +345,15 @@ function plot_output(
     output_filename_stem::String,
     model_output::AbstractModelOutput,
     grid::AbstractGrid;
-    output_file_extension::String="jld2",
-    max_columns::Int=3,
-    axis_width::Int=640,
-    axis_height::Int=640,
-    title_height::Int=40,
-    exclude_variables::Tuple=(),
-    variable_limits::NamedTuple=(;),
-    backend::Union{InMemory,OnDisk}=InMemory(),
-    times::Union{AbstractVector,Nothing}=nothing,
+    output_file_extension::String = "jld2",
+    max_columns::Int = 3,
+    axis_width::Int = 640,
+    axis_height::Int = 640,
+    title_height::Int = 40,
+    exclude_variables::Tuple = (),
+    variable_limits::NamedTuple = (;),
+    backend::Union{InMemory,OnDisk} = InMemory(),
+    times::Union{AbstractVector,Nothing} = nothing,
 )
     filepath = joinpath(
         output_directory,
@@ -381,8 +385,8 @@ function plot_output(
         row, col = plot_row_column_indices(variable_index, n_columns, row_offset)
         axis = Axis(
             fig[row, col];
-            title="$(long_name(variable)) / $(units(variable))",
-            titlegap=8.0,
+            title = "$(long_name(variable)) / $(units(variable))",
+            titlegap = 8.0,
             axis_kwargs...,
         )
         name = short_name(variable)
@@ -391,13 +395,18 @@ function plot_output(
             limits = auto_variable_limits(variable, field_data[name])
         end
         artist = plot_field_on_axis!(
-            axis, plot_output_type, field_data[name], time_index, variable, limits
+            axis,
+            plot_output_type,
+            field_data[name],
+            time_index,
+            variable,
+            limits,
         )
-        !isnothing(artist) && Colorbar(fig[row, col + 1], artist)
+        !isnothing(artist) && Colorbar(fig[row, col+1], artist)
     end
 
     if !isnothing(title)
-        fig[1, 1:end] = Label(fig, title; fontsize=20, tellwidth=false)
+        fig[1, 1:end] = Label(fig, title; fontsize = 20, tellwidth = false)
     end
 
     resize_to_layout!(fig)

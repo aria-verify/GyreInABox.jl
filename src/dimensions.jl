@@ -15,7 +15,7 @@ struct SpatialDimensions{X,Y,Z}
     z::Z
 end
 
-function update(original::SpatialDimensions; x=nothing, y=nothing, z=nothing)
+function update(original::SpatialDimensions; x = nothing, y = nothing, z = nothing)
     SpatialDimensions(
         isnothing(x) ? original.x : x,
         isnothing(y) ? original.y : y,
@@ -50,22 +50,34 @@ function indices(dimensions::SpatialDimensions, grid::ImmersedBoundaryGrid)
 end
 
 const FixedX = SpatialDimensions{
-    <:AbstractFixedSpatialDimension,<:FreeSpatialDimension,<:FreeSpatialDimension
+    <:AbstractFixedSpatialDimension,
+    <:FreeSpatialDimension,
+    <:FreeSpatialDimension,
 }
 const FixedY = SpatialDimensions{
-    <:FreeSpatialDimension,<:AbstractFixedSpatialDimension,<:FreeSpatialDimension
+    <:FreeSpatialDimension,
+    <:AbstractFixedSpatialDimension,
+    <:FreeSpatialDimension,
 }
 const FixedZ = SpatialDimensions{
-    <:FreeSpatialDimension,<:FreeSpatialDimension,<:AbstractFixedSpatialDimension
+    <:FreeSpatialDimension,
+    <:FreeSpatialDimension,
+    <:AbstractFixedSpatialDimension,
 }
 const FixedYZ = SpatialDimensions{
-    <:FreeSpatialDimension,<:AbstractFixedSpatialDimension,<:AbstractFixedSpatialDimension
+    <:FreeSpatialDimension,
+    <:AbstractFixedSpatialDimension,
+    <:AbstractFixedSpatialDimension,
 }
 const FixedXZ = SpatialDimensions{
-    <:AbstractFixedSpatialDimension,<:FreeSpatialDimension,<:AbstractFixedSpatialDimension
+    <:AbstractFixedSpatialDimension,
+    <:FreeSpatialDimension,
+    <:AbstractFixedSpatialDimension,
 }
 const FixedXY = SpatialDimensions{
-    <:AbstractFixedSpatialDimension,<:AbstractFixedSpatialDimension,<:FreeSpatialDimension
+    <:AbstractFixedSpatialDimension,
+    <:AbstractFixedSpatialDimension,
+    <:FreeSpatialDimension,
 }
 const FixedXYZ = SpatialDimensions{
     <:AbstractFixedSpatialDimension,
@@ -84,7 +96,7 @@ const ZeroOrOneSpatialDimensions = Union{FixedYZ,FixedXZ,FixedXY,FixedXYZ}
     $(FUNCTIONNAME)(dimensions, grid)
 
 Label for horizontal axis for plots of field with dimensions `dimensions` on grid `grid`.
-    
+
 $(TYPEDSIGNATURES)
 """
 function axis_xlabel end
@@ -103,7 +115,7 @@ end
     $(FUNCTIONNAME)(dimensions, grid)
 
 Label for vertical axis for plots of field with dimensions `dimensions` on grid `grid`.
-    
+
 $(TYPEDSIGNATURES)
 """
 function axis_ylabel end
@@ -123,7 +135,7 @@ end
     $(FUNCTIONNAME)(dimensions)
 
 Axis aspect ratio for field with dimensions `dimensions`.
-    
+
 $(TYPEDSIGNATURES)
 """
 
@@ -134,13 +146,15 @@ axis_aspect_ratio(::FixedZ) = DataAspect()
     $(FUNCTIONNAME)(dimensions, grid, times)
 
 Horizontal (x) axis limits for field with dimensions `dimension` on grid `grid` and times `times`.
-    
+
 $(TYPEDSIGNATURES)
 """
 function axis_xlimits end
 
 function axis_xlimits(
-    ::ZeroOrOneSpatialDimensions, ::AbstractUnderlyingGrid, times::AbstractVector
+    ::ZeroOrOneSpatialDimensions,
+    ::AbstractUnderlyingGrid,
+    times::AbstractVector,
 )
     extrema(times / 365day)
 end
@@ -162,7 +176,9 @@ function axis_xlimits(::FixedX, grid::RectilinearGrid, ::AbstractVector)
 end
 
 function axis_xlimits(
-    dimensions::SpatialDimensions, grid::ImmersedBoundaryGrid, times::AbstractVector
+    dimensions::SpatialDimensions,
+    grid::ImmersedBoundaryGrid,
+    times::AbstractVector,
 )
     axis_xlimits(dimensions, grid.underlying_grid, times)
 end
@@ -171,7 +187,7 @@ end
     $(FUNCTIONNAME)(dimensions, grid, times)
 
 Vertical (y) axis limits for field with dimensions `dimension` on grid `grid` and times `times`.
-    
+
 $(TYPEDSIGNATURES)
 """
 function axis_ylimits end
@@ -199,7 +215,9 @@ function axis_ylimits(::FixedXOrYOrXY, grid::AbstractUnderlyingGrid, ::AbstractV
 end
 
 function axis_ylimits(
-    dimensions::SpatialDimensions, grid::ImmersedBoundaryGrid, times::AbstractVector
+    dimensions::SpatialDimensions,
+    grid::ImmersedBoundaryGrid,
+    times::AbstractVector,
 )
     axis_ylimits(dimensions, grid.underlying_grid, times)
 end

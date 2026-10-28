@@ -2,9 +2,9 @@
 $(TYPEDEF)
 
 Configuration for ocean gyre model simulation
-    
+
 $(TYPEDSIGNATURES)
-    
+
 ## Details
 
 Variables defining overall configuration of simulation such as architecture to run on,
@@ -37,7 +37,9 @@ $(TYPEDFIELDS)
     wizard_max_change::T = 1.5
     "Output types to record during simulation"
     output_types::Tuple = (
-        horizontal_slice_output(depth=0.0), free_surface_output(), stream_functions_output()
+        horizontal_slice_output(depth = 0.0),
+        free_surface_output(),
+        stream_functions_output(),
     )
     "Whether to checkpoint simulation at end"
     checkpoint_at_end::Bool = true
@@ -53,13 +55,13 @@ Add callback for progress updates as configured in `configuration` in `simulatio
 $(SIGNATURES)
 """
 function add_progress_message_callback!(
-    simulation::Oceananigans.Simulation, configuration::SimulationConfiguration
+    simulation::Oceananigans.Simulation,
+    configuration::SimulationConfiguration,
 )
     variables = configuration.progress_message_variables
     iteration_format_string = "Iteration: %04d, time: %s, Δt: %s, wall time: %s\n  "
-    variables_format_string = join(
-        ("max(|$(short_name(v))|) = %.2e $(units(v))" for v in variables), ", "
-    )
+    variables_format_string =
+        join(("max(|$(short_name(v))|) = %.2e $(units(v))" for v in variables), ", ")
     message_string_format = Printf.Format(iteration_format_string * variables_format_string)
     progress_message(sim) = @info(
         Printf.format(
@@ -101,21 +103,23 @@ function add_output_writers!(
     )
     for output in output_types
         kwargs = if output_writer_type == NetCDFWriter
-            (; output_attributes=output_attributes(output.variables))
+            (; output_attributes = output_attributes(output.variables))
         else
             (;)
         end
         simulation.output_writers[Symbol(label(output))] = output_writer_type(
             model,
             outputs(output, model);
-            filename=output_filename(
-                output_filename_stem, output, extension(output_writer_type)
+            filename = output_filename(
+                output_filename_stem,
+                output,
+                extension(output_writer_type),
             ),
-            dir=output_directory,
-            indices=indices(output, grid),
-            schedule=schedule(output),
-            overwrite_files=true,
-            with_halos=false,
+            dir = output_directory,
+            indices = indices(output, grid),
+            schedule = schedule(output),
+            overwrite_files = true,
+            with_halos = false,
             kwargs...,
         )
     end
@@ -125,23 +129,25 @@ end
 
 """
 Set up simulation for model `model` with configuration `configuration`.
-    
+
 $(SIGNATURES)
 """
 function setup_simulation(
-    model::Oceananigans.AbstractModel, configuration::SimulationConfiguration
+    model::Oceananigans.AbstractModel,
+    configuration::SimulationConfiguration,
 )
     simulation = Simulation(
-        model; Δt=configuration.initial_timestep, stop_time=configuration.simulation_time
+        model;
+        Δt = configuration.initial_timestep,
+        stop_time = configuration.simulation_time,
     )
     wizard = TimeStepWizard(;
-        cfl=configuration.target_cfl,
-        max_change=configuration.wizard_max_change,
-        max_Δt=configuration.maximum_timestep,
+        cfl = configuration.target_cfl,
+        max_change = configuration.wizard_max_change,
+        max_Δt = configuration.maximum_timestep,
     )
-    simulation.callbacks[:wizard] = Callback(
-        wizard, IterationInterval(configuration.wizard_update_interval)
-    )
+    simulation.callbacks[:wizard] =
+        Callback(wizard, IterationInterval(configuration.wizard_update_interval))
     add_progress_message_callback!(simulation, configuration)
     add_output_writers!(
         simulation,
@@ -160,9 +166,10 @@ and configuration `configuration`.
 $(SIGNATURES)
 """
 function run_simulation(
-    parameters::AbstractParameters, configuration::SimulationConfiguration
+    parameters::AbstractParameters,
+    configuration::SimulationConfiguration,
 )
-    model = setup_model(parameters; architecture=configuration.architecture)
+    model = setup_model(parameters; architecture = configuration.architecture)
     initialize!(model, parameters)
     simulation = setup_simulation(model, configuration)
     pickup = !isnothing(configuration.pickup_checkpoint) && configuration.pickup_checkpoint
@@ -183,8 +190,8 @@ $(SIGNATURES)
 
 ## Details
 
-Generates and record to files plots of type `plot_output_type` for model 
-outputs on grid `grid` and  for a simulation configuration `configuration`. 
+Generates and record to files plots of type `plot_output_type` for model
+outputs on grid `grid` and  for a simulation configuration `configuration`.
 Keyword arguments `kwargs`  are passed through to [`plot_output()`](@ref)
 and can be used to customize plot output.
 """
@@ -205,7 +212,7 @@ function plot_outputs(
                 configuration.output_filename_stem,
                 output_type,
                 grid;
-                output_file_extension=extension(configuration.output_writer_type),
+                output_file_extension = extension(configuration.output_writer_type),
                 kwargs...,
             )
         end
@@ -220,4 +227,3 @@ function plot_outputs(
 )
     plot_outputs(plot_output_type, grid(parameters, CPU()), configuration; kwargs...)
 end
-

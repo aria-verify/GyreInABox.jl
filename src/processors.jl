@@ -43,7 +43,7 @@ function label(processor::SpatialAverageProcessor)
 end
 
 function process(processor::SpatialAverageProcessor, field::Field)
-    Field(Average(field; dims=processor.dimensions, condition=processor.mask))
+    Field(Average(field; dims = processor.dimensions, condition = processor.mask))
 end
 
 struct SpatialMaximumProcessor{D} <: AbstractSpatialReductionProcessor{D}
@@ -55,11 +55,12 @@ function label(processor::SpatialMaximumProcessor)
 end
 
 function process(processor::SpatialMaximumProcessor, field::Field)
-    Field(Reduction(maximum!, field; dims=processor.dimensions))
+    Field(Reduction(maximum!, field; dims = processor.dimensions))
 end
 
 function process(
-    processor::AbstractSpatialReductionProcessor, dimensions::SpatialDimensions
+    processor::AbstractSpatialReductionProcessor,
+    dimensions::SpatialDimensions,
 )
     update(
         dimensions;
@@ -79,7 +80,8 @@ function process(processor::Vector{<:AbstractSpatialProcessor}, field::Field)
 end
 
 function process(
-    processor::Vector{<:AbstractSpatialProcessor}, dimensions::SpatialDimensions
+    processor::Vector{<:AbstractSpatialProcessor},
+    dimensions::SpatialDimensions,
 )
     for p in processor
         dimensions = process(p, dimensions)

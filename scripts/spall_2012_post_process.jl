@@ -12,17 +12,17 @@ function parse_commandline()
 
     @add_arg_table s begin
         "run-output-path"
-            help = "Path to directory containing run outputs"
-            arg_type = String
-            required = true
+        help = "Path to directory containing run outputs"
+        arg_type = String
+        required = true
         "--plot-time-range", "-t"
-            help = "Time range for plots in format (start, step, end) in days"
-            arg_type = Float64
-            nargs = 3
+        help = "Time range for plots in format (start, step, end) in days"
+        arg_type = Float64
+        nargs = 3
         "--output-filename-suffix", "-o"
-            help = "Output filename suffix for summary plot"
-            arg_type = String
-            default = "summary"
+        help = "Output filename suffix for summary plot"
+        arg_type = String
+        default = "summary"
     end
 
     return parse_args(s)
@@ -34,25 +34,24 @@ function main()
     parameters = load("$(args["run-output-path"])/parameters.jld2")["parameters"]
     configuration = load("$(args["run-output-path"])/configuration.jld2")["configuration"]
 
-    outputs = Dict{GyreInABox.AbstractModelVariable, GyreInABox.AbstractModelOutput}()
+    outputs = Dict{GyreInABox.AbstractModelVariable,GyreInABox.AbstractModelOutput}()
 
     variables = (
-        S=Salinity(),
-        T=Temperature(),
-        eₖ=SpecificKineticEnergy(),
-        Ψᴹ=MOCStreamFunction(),
-        Q=NorthwardHeatTransport(),
+        S = Salinity(),
+        T = Temperature(),
+        eₖ = SpecificKineticEnergy(),
+        Ψᴹ = MOCStreamFunction(),
+        Q = NorthwardHeatTransport(),
     )
 
     for variable in values(variables)
         output_type_index = findfirst(
             ot -> (
-                variable in ot.variables && 
-                GyreInABox.spatial_dimensions(
-                    variable, ot.processor
-                ) isa GyreInABox.ZeroOrOneSpatialDimensions
-            ), 
-            configuration.output_types
+                variable in ot.variables &&
+                GyreInABox.spatial_dimensions(variable, ot.processor) isa
+                GyreInABox.ZeroOrOneSpatialDimensions
+            ),
+            configuration.output_types,
         )
         outputs[variable] = if !isnothing(output_type_index)
             configuration.output_types[output_type_index]
@@ -69,23 +68,23 @@ function main()
         nothing
     end
 
-    fig = Figure(; size=(1200, 800))
+    fig = Figure(; size = (1200, 800))
 
     row = 2
 
     function load_field_time_series(variable)
         FieldTimeSeries(
-                joinpath(
-                    args["run-output-path"],
-                    GyreInABox.output_filename(
-                        configuration.output_filename_stem, 
-                        outputs[variable],
-                        GyreInABox.extension(configuration.output_writer_type)
-                    )
+            joinpath(
+                args["run-output-path"],
+                GyreInABox.output_filename(
+                    configuration.output_filename_stem,
+                    outputs[variable],
+                    GyreInABox.extension(configuration.output_writer_type),
                 ),
-                GyreInABox.short_name(variable);
-                backend=InMemory(),
-                times=plot_times,
+            ),
+            GyreInABox.short_name(variable);
+            backend = InMemory(),
+            times = plot_times,
         )
     end
 
@@ -94,9 +93,11 @@ function main()
         T_timeseries = load_field_time_series(variables.T)
         ρ_timeseries = (
             parameters.sea_water_density .+ stack(
-                (parameters.haline_contraction_coefficient * S_timeseries[t] - parameters.thermal_expansion_coefficient * T_timeseries[t])[
-                    1, 1, 1:parameters.grid_size[3]
-                ] for t in 1:length(S_timeseries)
+                (parameters.haline_contraction_coefficient*S_timeseries[t]-parameters.thermal_expansion_coefficient*T_timeseries[t])[
+                    1,
+                    1,
+                    1:parameters.grid_size[3],
+                ] for t = 1:length(S_timeseries)
             )
         )
         times = collect(S_timeseries.times / 365days)
@@ -118,13 +119,13 @@ function main()
         ]
             ax = Axis(
                 fig[row, col];
-                title=label,
-                xlabel="Time / years",
-                ylabel="Depth / m",
-                limits=(extrema(times), extrema(depths)),
-            );
+                title = label,
+                xlabel = "Time / years",
+                ylabel = "Depth / m",
+                limits = (extrema(times), extrema(depths)),
+            )
             col += 1
-            cf = contourf!(ax, times, depths, timeseries'; colormap=cmap)
+            cf = contourf!(ax, times, depths, timeseries'; colormap = cmap)
             Colorbar(fig[row, col], cf)
             col += 1
         end
@@ -139,16 +140,15 @@ function main()
             timeseries = load_field_time_series(variable)
             times = collect(timeseries.times / 365days)
             ax = Axis(
-                fig[row, col:(col + 1)];
-                title="$(GyreInABox.long_name(variable)) / $(GyreInABox.units(variable))",
-                xlabel="Time / years",
-                limits=(extrema(times), nothing),
+                fig[row, col:(col+1)];
+                title = "$(GyreInABox.long_name(variable)) / $(GyreInABox.units(variable))",
+                xlabel = "Time / years",
+                limits = (extrema(times), nothing),
             )
             dims = size(timeseries)
             indices = timeseries.indices
             indices = Tuple(
-                s == 1 && indices[i] != Colon() ? first(indices[i]) : (s > 1 ? Colon() : 1)
-                for (i, s) in enumerate(dims)
+                s == 1 && indices[i] != Colon() ? first(indices[i]) : (s > 1 ? Colon() : 1) for (i, s) in enumerate(dims)
             )
             lines!(ax, times, timeseries[indices...])
             col += 2
@@ -159,8 +159,8 @@ function main()
         fig,
         "Γ = $(parameters.surface_temperature_restoring_strength) Wm⁻²K⁻¹ and " *
         "E = $(parameters.northern_basin_surface_evaporation / 1e-8)×10⁻⁸ ms⁻¹";
-        fontsize=20,
-        tellwidth=false,
+        fontsize = 20,
+        tellwidth = false,
     )
 
     resize_to_layout!(fig)
@@ -170,8 +170,8 @@ function main()
         GyreInABox.output_filename(
             configuration.output_filename_stem,
             args["output-filename-suffix"],
-            "svg"
-        )
+            "svg",
+        ),
     )
 
     @info "Writing output figure to $(output_path)"

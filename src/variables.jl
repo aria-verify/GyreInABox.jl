@@ -50,7 +50,9 @@ Spatial dimensions of field associated with `variable`.
 """
 function spatial_dimensions(::AbstractModelVariable)
     SpatialDimensions(
-        FreeSpatialDimension(), FreeSpatialDimension(), FreeSpatialDimension()
+        FreeSpatialDimension(),
+        FreeSpatialDimension(),
+        FreeSpatialDimension(),
     )
 end
 
@@ -90,7 +92,9 @@ units(::AbstractBarotropicVelocityVariable) = "m² s⁻¹"
 color_map(::AbstractBarotropicVelocityVariable) = :balance
 function spatial_dimensions(::AbstractBarotropicVelocityVariable)
     SpatialDimensions(
-        FreeSpatialDimension(), FreeSpatialDimension(), ReducedSpatialDimension()
+        FreeSpatialDimension(),
+        FreeSpatialDimension(),
+        ReducedSpatialDimension(),
     )
 end
 
@@ -196,14 +200,16 @@ struct SpecificTurbulentKineticEnergy <: AbstractSpecificKineticEnergyVariable e
 
 field(::SpecificTurbulentKineticEnergy, model) = model.tracers.e
 short_name(::SpecificTurbulentKineticEnergy) = "e"
-standard_name(::SpecificTurbulentKineticEnergy) = "specific_turbulent_kinetic_energy_of_sea_water"
+standard_name(
+    ::SpecificTurbulentKineticEnergy,
+) = "specific_turbulent_kinetic_energy_of_sea_water"
 long_name(::SpecificTurbulentKineticEnergy) = "Specific turbulent kinetic energy"
 
 """
 $(TYPEDEF)
 
 Meridional overturning circulation (MOC) stream function.
-    
+
 ## Details
 
 Latitude-depth or y-depth fields corresponding to stream function of meridional overturning
@@ -211,8 +217,8 @@ circulation - computed here as vertically accumulated - that is cumulative verti
 integral with respect to depth - of zonally integrated meridional velocity component:
 
 ```math
-\\Psi^M(\\varphi, z, t) = 
-\\int_{0}^z \\int_{\\lambda_W}^{\\lambda_E} 
+\\Psi^M(\\varphi, z, t) =
+\\int_{0}^z \\int_{\\lambda_W}^{\\lambda_E}
   v(\\lambda, \\varphi, z', t)
 \\,\\mathrm{d}\\lambda \\,\\mathrm{d}z'
 ```
@@ -220,8 +226,8 @@ integral with respect to depth - of zonally integrated meridional velocity compo
 or in rectilinear coordinates:
 
 ```math
-\\Psi^M(y, z, t) = 
-\\int_{0}^z \\int_{x_W}^{x_E} 
+\\Psi^M(y, z, t) =
+\\int_{0}^z \\int_{x_W}^{x_E}
   v(x, y, z', t)
 \\,\\mathrm{d}x \\,\\mathrm{d}z'
 ```
@@ -235,7 +241,9 @@ function field(::MOCStreamFunction, model)
     # units 10⁶ m³ s⁻¹ = sverdrup
     Field(
         CumulativeIntegral(
-            Field(Integral(1e-6 * model.velocities.v; dims=1)); dims=3, reverse=true
+            Field(Integral(1e-6 * model.velocities.v; dims = 1));
+            dims = 3,
+            reverse = true,
         ),
     )
 end
@@ -245,7 +253,9 @@ long_name(::MOCStreamFunction) = "MOC stream function"
 units(::MOCStreamFunction) = "sverdrup"
 function spatial_dimensions(::MOCStreamFunction)
     SpatialDimensions(
-        ReducedSpatialDimension(), FreeSpatialDimension(), FreeSpatialDimension()
+        ReducedSpatialDimension(),
+        FreeSpatialDimension(),
+        FreeSpatialDimension(),
     )
 end
 
@@ -253,7 +263,7 @@ end
 $(TYPEDEF)
 
 Barotropic stream function.
-    
+
 ## Details
 
 Longitude-latitude or x-y fields corresponding to stream function of barotropic
@@ -261,8 +271,8 @@ velocity - computed here as zonally accumulated - that is cumulative integral wi
 respect to longitude - of depth integrated meridional velocity component:
 
 ```math
-\\Psi^B(\\lambda, \\varphi, t) = 
-\\int_{\\lambda_W}^{\\lambda}  \\int_{z_B}^{z_S} 
+\\Psi^B(\\lambda, \\varphi, t) =
+\\int_{\\lambda_W}^{\\lambda}  \\int_{z_B}^{z_S}
   v(\\lambda', \\varphi, z, t)
 \\,\\mathrm{d}z \\,\\mathrm{d}\\lambda'
 ```
@@ -270,8 +280,8 @@ respect to longitude - of depth integrated meridional velocity component:
 or in rectilinear coordinates:
 
 ```math
-\\Psi^B(x, y, t) = 
-\\int_{x_W}^{x}  \\int_{z_B}^{z_S} 
+\\Psi^B(x, y, t) =
+\\int_{x_W}^{x}  \\int_{z_B}^{z_S}
   v(x', y, z, t)
 \\,\\mathrm{d}z \\,\\mathrm{d}x'
 ```
@@ -283,7 +293,9 @@ struct BarotropicStreamFunction <: AbstractVelocityStreamFunctionVariable end
 function field(::BarotropicStreamFunction, model)
     # Scale velocities by 1 / 10⁶ so doubly spatially integrated field is in
     # units 10⁶ m³ s⁻¹ = sverdrup
-    Field(CumulativeIntegral(Field(Integral(1e-6 * model.velocities.v; dims=3)); dims=1))
+    Field(
+        CumulativeIntegral(Field(Integral(1e-6 * model.velocities.v; dims = 3)); dims = 1),
+    )
 end
 short_name(::BarotropicStreamFunction) = "Ψᴮ"
 standard_name(::BarotropicStreamFunction) = "ocean_barotropic_streamfunction"
@@ -291,7 +303,9 @@ long_name(::BarotropicStreamFunction) = "Barotropic stream function"
 units(::BarotropicStreamFunction) = "sverdrup"
 function spatial_dimensions(::BarotropicStreamFunction)
     SpatialDimensions(
-        FreeSpatialDimension(), FreeSpatialDimension(), ReducedSpatialDimension()
+        FreeSpatialDimension(),
+        FreeSpatialDimension(),
+        ReducedSpatialDimension(),
     )
 end
 
@@ -299,9 +313,9 @@ end
 $(TYPEDEF)
 
 Northward (meridional) heat transport.
-    
+
 $(TYPEDSIGNATURES)
-    
+
 ## Details
 
 Scalar field corresponding to northern (meridional) heat transport at a
@@ -310,8 +324,8 @@ given y / latitude coordinate.
 The meridional heat transport is computed here as:
 
 ```math
-Q(\\varphi, t) = 
-\\int_{z_B}^{z_T} \\int_{\\lambda_W}^{\\lambda_E} 
+Q(\\varphi, t) =
+\\int_{z_B}^{z_T} \\int_{\\lambda_W}^{\\lambda_E}
   c_p \\rho v(\\lambda, \\varphi, z, t) T(\\lambda, \\varphi, z, t)
 \\,\\mathrm{d}\\lambda \\,\\mathrm{d}z
 ```
@@ -319,8 +333,8 @@ Q(\\varphi, t) =
 or in rectilinear coordinates:
 
 ```math
-Q(y, t) = 
-\\int_{z_B}^{z_T} \\int_{x_W}^{x_E} 
+Q(y, t) =
+\\int_{z_B}^{z_T} \\int_{x_W}^{x_E}
   c_p \\rho v(x, y, z, t) T(x, y, z, t)
 \\,\\mathrm{d}x \\,\\mathrm{d}z
 ```
@@ -347,7 +361,7 @@ function field(variable::NorthwardHeatTransport, model)
             variable.sea_water_specific_heat_capacity *
             model.velocities.v *
             model.tracers.T;
-            dims=(1, 3),
+            dims = (1, 3),
         ),
     )
 end
@@ -358,7 +372,9 @@ units(::NorthwardHeatTransport) = "TW"
 color_map(::NorthwardHeatTransport) = :balance
 function spatial_dimensions(::NorthwardHeatTransport)
     SpatialDimensions(
-        ReducedSpatialDimension(), FreeSpatialDimension(), ReducedSpatialDimension()
+        ReducedSpatialDimension(),
+        FreeSpatialDimension(),
+        ReducedSpatialDimension(),
     )
 end
 
@@ -409,18 +425,17 @@ units(::FreeSurfaceDisplacement) = "m"
 color_map(::FreeSurfaceDisplacement) = :balance
 function spatial_dimensions(::FreeSurfaceDisplacement)
     SpatialDimensions(
-        FreeSpatialDimension(), FreeSpatialDimension(), ReducedSpatialDimension()
+        FreeSpatialDimension(),
+        FreeSpatialDimension(),
+        ReducedSpatialDimension(),
     )
 end
 
-const VELOCITY_VARIABLES = (
-    EastwardVelocity(), NorthwardVelocity(), UpwardVelocity()
-)
+const VELOCITY_VARIABLES = (EastwardVelocity(), NorthwardVelocity(), UpwardVelocity())
 const TRACER_VARIABLES = (Salinity(), Temperature())
 const VELOCITY_AND_TRACER_VARIABLES = (VELOCITY_VARIABLES..., TRACER_VARIABLES...)
-const BAROTROPIC_VELOCITY_VARIABLES = (
-    EastwardBarotropicVelocity(), NorthwardBarotropicVelocity()
-)
+const BAROTROPIC_VELOCITY_VARIABLES =
+    (EastwardBarotropicVelocity(), NorthwardBarotropicVelocity())
 
 """
 $(SIGNATURES)
@@ -443,12 +458,12 @@ end
 """
 $(SIGNATURES)
 
-Automatic variable value limits for field for variable `variable` with 
+Automatic variable value limits for field for variable `variable` with
 data in `field_time_series`.
 
 ## Details
 
-Computes extrema of field data and sets limits to these extrema, 
+Computes extrema of field data and sets limits to these extrema,
 symmetrizing the upper and lower limits if appropriate for the variable.
 """
 function auto_variable_limits(variable::AbstractModelVariable, field_timeseries)
