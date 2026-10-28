@@ -2,25 +2,25 @@
 $(TYPEDEF)
 
 Parameters for simplified ocean gyre model from Spall (2011; 2012).
-    
+
 $(TYPEDSIGNATURES)
-    
+
 ## Details
 
 Real-valued parameters of model controlling initial and boundary conditions.
 
 ## References
 
-1. Spall, M.A., 2011. On the Role of Eddies and Surface Forcing in the Heat Transport 
+1. Spall, M.A., 2011. On the Role of Eddies and Surface Forcing in the Heat Transport
    and Overturning Circulation in Marginal Seas. Journal of Climate, 24, 4844--4858,
    https://doi.org/10.1175/2011JCLI4130.
-2. Spall, M. A., 2012: Influences of Precipitation on Water Mass Transformation and 
+2. Spall, M. A., 2012: Influences of Precipitation on Water Mass Transformation and
    Deep Convection. J. Phys. Oceanogr., 42, 1684--1700,
-   https://doi.org/10.1175/JPO-D-11-0230.1. 
+   https://doi.org/10.1175/JPO-D-11-0230.1.
 
 $(TYPEDFIELDS)
 """
-@kwdef struct Spall2011Parameters{T, S} <: AbstractParameters{T}
+@kwdef struct Spall2011Parameters{T,S} <: AbstractParameters{T}
     "Grid dimensions in x, y and depth"
     grid_size::NTuple{3,Int} = (200, 400, 20)
     "Dimensions of grid halo region in x, y and depth"
@@ -106,16 +106,26 @@ $(TYPEDFIELDS)
     "Split explicit free surface CFL target if adaptive substepping to be used"
     split_explicit_free_surface_cfl::T = 0.7
     "Split explicit free surface number of steps if fixed substepping to be used"
-    split_explicit_free_surface_substeps::S = nothing 
+    split_explicit_free_surface_substeps::S = nothing
 end
 
-function zonal_surface_wind_stress(x::T, y::T, t::T, parameters::Spall2011Parameters{T, S}) where {T, S}
+function zonal_surface_wind_stress(
+    x::T,
+    y::T,
+    t::T,
+    parameters::Spall2011Parameters{T,S},
+) where {T,S}
     (parameters.zonal_wind_stress / parameters.sea_water_density) *
     smooth_step(t / parameters.surface_wind_forcing_ramp_up_timescale) *
     cos(T(π) * y / parameters.domain_size_y)
 end
 
-function meridional_surface_wind_stress(x::T, y::T, t::T, parameters::Spall2011Parameters{T, S}) where {T, S}
+function meridional_surface_wind_stress(
+    x::T,
+    y::T,
+    t::T,
+    parameters::Spall2011Parameters{T,S},
+) where {T,S}
     (parameters.meridional_wind_stress / parameters.sea_water_density) *
     smooth_step(t / parameters.surface_wind_forcing_ramp_up_timescale) *
     cos(π * x / parameters.domain_size_x)
@@ -153,7 +163,10 @@ function two_basin_bathymetry(x, y, parameters::Spall2011Parameters)
     elseif y > sill_southern_limit && y < sill_northern_limit
         # in sill region
         sill_height = sill_profile.(
-            y, parameters.sill_center_y, parameters.sill_width, parameters.sill_height
+            y,
+            parameters.sill_center_y,
+            parameters.sill_width,
+            parameters.sill_height,
         )
         x_boundary = min(x, parameters.domain_size_x - x)
         side_slope_height = side_wall_profile(
@@ -195,7 +208,12 @@ end
 end
 
 @inline function surface_temperature_flux(
-    i, j, grid, clock, model_fields, p::Spall2011Parameters
+    i,
+    j,
+    grid,
+    clock,
+    model_fields,
+    p::Spall2011Parameters,
 )
     x = xnode(i, j, 1, grid, Center(), Center(), Center())
     y = ynode(i, j, 1, grid, Center(), Center(), Center())
@@ -205,24 +223,43 @@ end
     )
 end
 
-@inline function surface_evaporation_minus_precipitation(y::T, t::T, p::Spall2011Parameters{T, S}) where {T, S}
+@inline function surface_evaporation_minus_precipitation(
+    y::T,
+    t::T,
+    p::Spall2011Parameters{T,S},
+) where {T,S}
     y <= p.sill_center_y && return zero(T)
     E_0 = p.northern_basin_surface_evaporation
     ΔE = p.northern_basin_surface_evaporation_ramp_delta
-    Δt = (p.northern_basin_surface_evaporation_ramp_end - p.northern_basin_surface_evaporation_ramp_start) / T(2)
+    Δt =
+        (
+            p.northern_basin_surface_evaporation_ramp_end -
+            p.northern_basin_surface_evaporation_ramp_start
+        ) / T(2)
     t_0 = p.northern_basin_surface_evaporation_ramp_start
     return triangular_ramp(t, t_0, Δt, E_0, ΔE)
 end
 
 @inline function surface_salinity_flux(
-    i, j, grid, clock, model_fields, p::Spall2011Parameters
+    i,
+    j,
+    grid,
+    clock,
+    model_fields,
+    p::Spall2011Parameters,
 )
     t = clock.time
     y = ynode(i, j, 1, grid, Center(), Center(), Center())
-    @inbounds -model_fields.S[i, j, grid.Nz] * surface_evaporation_minus_precipitation(y, t, p)
+    @inbounds -model_fields.S[i, j, grid.Nz] *
+              surface_evaporation_minus_precipitation(y, t, p)
 end
 
-@inline function southern_region_mask(x::T, y::T, z::T, p::Spall2011Parameters{T, S}) where {T, S}
+@inline function southern_region_mask(
+    x::T,
+    y::T,
+    z::T,
+    p::Spall2011Parameters{T,S},
+) where {T,S}
     if p.southern_boundary_window_width == 0
         T(y < p.southern_region_extent)
     else
@@ -235,19 +272,33 @@ end
 end
 
 @inline function vertically_stratified_temperature(
-    z::T, surface_temperature::T, p::Spall2011Parameters{T, S}
-) where {T, S}
+    z::T,
+    surface_temperature::T,
+    p::Spall2011Parameters{T,S},
+) where {T,S}
     surface_temperature +
     z * p.sea_water_density * p.vertical_stratification /
     (p.thermal_expansion_coefficient * T(gravitational_acceleration))
 end
 
-@inline function southern_region_temperature_target(x::T, y::T, z::T, t::T, p::Spall2011Parameters{T, S}) where {T, S}
+@inline function southern_region_temperature_target(
+    x::T,
+    y::T,
+    z::T,
+    t::T,
+    p::Spall2011Parameters{T,S},
+) where {T,S}
     vertically_stratified_temperature(z, p.southern_surface_temperature, p)
 end
 
 @inline function southern_region_temperature_forcing(
-    i, j, k, grid, clock, model_fields, parameters::Spall2011Parameters
+    i,
+    j,
+    k,
+    grid,
+    clock,
+    model_fields,
+    parameters::Spall2011Parameters,
 )
     t = clock.time
     x, y, z = node(i, j, k, grid, Center(), Center(), Center())
@@ -260,68 +311,84 @@ end
 end
 
 @inline function southern_region_salinity_forcing(
-    i, j, k, grid, clock, model_fields, parameters::Spall2011Parameters
+    i,
+    j,
+    k,
+    grid,
+    clock,
+    model_fields,
+    parameters::Spall2011Parameters,
 )
     t = clock.time
     x, y, z = node(i, j, k, grid, Center(), Center(), Center())
     return @inbounds(
         southern_region_mask(x, y, z, parameters) *
         (parameters.reference_salinity - model_fields.S[i, j, k]) /
-            parameters.southern_region_relaxation_time
+        parameters.southern_region_relaxation_time
     )
 end
 
 function boundary_conditions(parameters::Spall2011Parameters{T}) where {T}
     u_bcs = FieldBoundaryConditions(;
-        top=FluxBoundaryCondition(zonal_surface_wind_stress; parameters)
+        top = FluxBoundaryCondition(zonal_surface_wind_stress; parameters),
     )
     v_bcs = FieldBoundaryConditions(;
-        top=FluxBoundaryCondition(meridional_surface_wind_stress; parameters)
+        top = FluxBoundaryCondition(meridional_surface_wind_stress; parameters),
     )
     S_bcs = FieldBoundaryConditions(;
-        top=FluxBoundaryCondition(surface_salinity_flux; discrete_form=true, parameters)
+        top = FluxBoundaryCondition(
+            surface_salinity_flux;
+            discrete_form = true,
+            parameters,
+        ),
     )
     T_bcs = FieldBoundaryConditions(;
-        top=FluxBoundaryCondition(surface_temperature_flux; discrete_form=true, parameters)
+        top = FluxBoundaryCondition(
+            surface_temperature_flux;
+            discrete_form = true,
+            parameters,
+        ),
     )
-    return (; u=u_bcs, v=v_bcs, S=S_bcs, T=T_bcs)
+    return (; u = u_bcs, v = v_bcs, S = S_bcs, T = T_bcs)
 end
 
 function forcing(parameters::Spall2011Parameters)
     (;
-        S=Forcing(southern_region_salinity_forcing; discrete_form=true, parameters),
-        T=Forcing(southern_region_temperature_forcing; discrete_form=true, parameters),
+        S = Forcing(southern_region_salinity_forcing; discrete_form = true, parameters),
+        T = Forcing(southern_region_temperature_forcing; discrete_form = true, parameters),
     )
 end
 
 function grid(
-    parameters::Spall2011Parameters, architecture::Oceananigans.AbstractArchitecture
+    parameters::Spall2011Parameters,
+    architecture::Oceananigans.AbstractArchitecture,
 )
     underlying_grid = RectilinearGrid(
         architecture;
-        size=parameters.grid_size,
-        x=(0, parameters.domain_size_x),
-        y=(0, parameters.domain_size_y),
-        z=ExponentialDiscretization(
+        size = parameters.grid_size,
+        x = (0, parameters.domain_size_x),
+        y = (0, parameters.domain_size_y),
+        z = ExponentialDiscretization(
             parameters.grid_size[3],
             parameters.bottom_depth,
             0;
-            scale=parameters.depth_grid_scale_factor,
+            scale = parameters.depth_grid_scale_factor,
         ),
-        halo=parameters.halo_size,
-        topology=(Bounded, Bounded, Bounded),
+        halo = parameters.halo_size,
+        topology = (Bounded, Bounded, Bounded),
     )
     ImmersedBoundaryGrid(
-        underlying_grid, GridFittedBottom((x, y) -> two_basin_bathymetry(x, y, parameters))
+        underlying_grid,
+        GridFittedBottom((x, y) -> two_basin_bathymetry(x, y, parameters)),
     )
 end
 
 function buoyancy(parameters::Spall2011Parameters)
     equation_of_state = LinearEquationOfState(;
-        thermal_expansion=(
+        thermal_expansion = (
             parameters.thermal_expansion_coefficient / parameters.sea_water_density
         ),
-        haline_contraction=(
+        haline_contraction = (
             parameters.haline_contraction_coefficient / parameters.sea_water_density
         ),
     )
@@ -333,10 +400,10 @@ function closure(parameters::Spall2011Parameters)
         CATKEVerticalDiffusivity()
     else
         ConvectiveAdjustmentVerticalDiffusivity(;
-            background_νz=parameters.vertical_viscosity_coefficient,
-            background_κz=parameters.vertical_diffusivity_coefficient,
-            convective_νz=parameters.vertical_viscosity_coefficient,
-            convective_κz=parameters.convective_vertical_diffusivity_coefficient,
+            background_νz = parameters.vertical_viscosity_coefficient,
+            background_κz = parameters.vertical_diffusivity_coefficient,
+            convective_νz = parameters.vertical_viscosity_coefficient,
+            convective_κz = parameters.convective_vertical_diffusivity_coefficient,
         )
     end
     if parameters.use_eddy_closure
@@ -348,22 +415,25 @@ function closure(parameters::Spall2011Parameters)
 end
 
 function coriolis(parameters::Spall2011Parameters)
-    BetaPlane(; f₀=parameters.coriolis_offset, β=parameters.coriolis_coefficient)
+    BetaPlane(; f₀ = parameters.coriolis_offset, β = parameters.coriolis_coefficient)
 end
 tracers(parameters::Spall2011Parameters) = (:T, :S)
 function momentum_advection(parameters::Spall2011Parameters)
-    Oceananigans.WENOVectorInvariant(; order=parameters.advection_order)
+    Oceananigans.WENOVectorInvariant(; order = parameters.advection_order)
 end
 function tracer_advection(parameters::Spall2011Parameters)
-    Oceananigans.WENO(; order=parameters.advection_order)
+    Oceananigans.WENO(; order = parameters.advection_order)
 end
 
-function free_surface(parameters::Spall2011Parameters{<:Any, <:Nothing}, grid::AbstractGrid)
-    SplitExplicitFreeSurface(grid; cfl=parameters.split_explicit_free_surface_cfl)
+function free_surface(parameters::Spall2011Parameters{<:Any,<:Nothing}, grid::AbstractGrid)
+    SplitExplicitFreeSurface(grid; cfl = parameters.split_explicit_free_surface_cfl)
 end
 
-function free_surface(parameters::Spall2011Parameters{<:Any, <:Integer}, grid::AbstractGrid)
-    SplitExplicitFreeSurface(grid; substeps=parameters.split_explicit_free_surface_substeps)
+function free_surface(parameters::Spall2011Parameters{<:Any,<:Integer}, grid::AbstractGrid)
+    SplitExplicitFreeSurface(
+        grid;
+        substeps = parameters.split_explicit_free_surface_substeps,
+    )
 end
 
 function initialize!(model::Oceananigans.AbstractModel, parameters::Spall2011Parameters)
@@ -375,47 +445,54 @@ function initialize!(model::Oceananigans.AbstractModel, parameters::Spall2011Par
         end
         vertically_stratified_temperature(z, surface_temperature, parameters)
     end
-    set!(model; u=0.0, v=0.0, S=parameters.reference_salinity, T=T_initial)
+    set!(model; u = 0.0, v = 0.0, S = parameters.reference_salinity, T = T_initial)
     nothing
 end
 
 function plot_domain_and_forcing(
-    parameters::Spall2011Parameters; axis_height::Int=600, axis_width::Int=400, font_size::Int=12,
+    parameters::Spall2011Parameters;
+    axis_height::Int = 600,
+    axis_width::Int = 400,
+    font_size::Int = 12,
 )
     grid = GyreInABox.grid(parameters, CPU())
-    temperature_field = CenterField(grid; indices=(:, :, grid.Nz))
+    temperature_field = CenterField(grid; indices = (:, :, grid.Nz))
     set!(temperature_field, (x, y, z) -> reference_surface_temperature(x, y, parameters))
-    figure = Figure(; size=(axis_width * 4, axis_height), fontsize=font_size, titlegap=6)
+    figure =
+        Figure(; size = (axis_width * 4, axis_height), fontsize = font_size, titlegap = 6)
     aspect = AxisAspect(parameters.domain_size_x / parameters.domain_size_y)
     xlabel = "x / m"
     ylabel = "y / m"
     limits = ((0.0, parameters.domain_size_x), (0.0, parameters.domain_size_y))
-    ax1 = Axis(figure[1, 1]; title="Bottom depth / m", aspect, xlabel, ylabel, limits)
+    ax1 = Axis(figure[1, 1]; title = "Bottom depth / m", aspect, xlabel, ylabel, limits)
     ax2 = Axis(
         figure[1, 3];
-        title="Reference surface temperature / °C",
+        title = "Reference surface temperature / °C",
         aspect,
         xlabel,
         ylabel,
         limits,
     )
-    ax3 = Axis(figure[1, 5]; title="Surface zonal velocity flux / m² s⁻²", aspect, ylabel)
+    ax3 = Axis(figure[1, 5]; title = "Surface zonal velocity flux / m² s⁻²", aspect, ylabel)
     ax4 = Axis(
         figure[1, 6];
-        title="Surface salinity flux / m s⁻¹",
+        title = "Surface salinity flux / m s⁻¹",
         aspect,
         ylabel,
-        xticks=[0, parameters.northern_basin_surface_evaporation],
+        xticks = [0, parameters.northern_basin_surface_evaporation],
     )
-    c1 = contourf!(ax1, -bottom_height_field(grid); colormap=:deep)
+    c1 = contourf!(ax1, -bottom_height_field(grid); colormap = :deep)
     Colorbar(figure[1, 2], c1)
-    c2 = contourf!(ax2, temperature_field; colormap=:thermal, levels=2:11)
+    c2 = contourf!(ax2, temperature_field; colormap = :thermal, levels = 2:11)
     Colorbar(figure[1, 4], c2)
     y = ynodes(grid, Face())
     lines!(
         ax3,
         zonal_surface_wind_stress.(
-            nothing, y, parameters.surface_wind_forcing_ramp_up_timescale, (parameters,)
+            nothing,
+            y,
+            parameters.surface_wind_forcing_ramp_up_timescale,
+            (parameters,),
         ),
         y,
     )

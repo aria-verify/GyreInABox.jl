@@ -47,4 +47,3 @@ echo "Post processing simulation outputs..."
 
 julia --project=$SCRIPTS_DIR $POST_PROCESS_SCRIPT_PATH $EXPERIMENT_DIR \
     -t $PLOT_START_TIME_DAYS $OUTPUT_INTERVAL_DAYS $PLOT_END_TIME_DAYS
-

@@ -88,18 +88,18 @@ Set up ocean gyre model with parameters `parameters` on grid with architecture `
 
 $(SIGNATURES)
 """
-function setup_model(parameters::AbstractParameters; architecture=CPU())
+function setup_model(parameters::AbstractParameters; architecture = CPU())
     grid_ = grid(parameters, architecture)
     HydrostaticFreeSurfaceModel(
         grid_;
-        momentum_advection=momentum_advection(parameters),
-        tracer_advection=tracer_advection(parameters),
-        coriolis=coriolis(parameters),
-        closure=closure(parameters),
-        buoyancy=buoyancy(parameters),
-        boundary_conditions=boundary_conditions(parameters),
-        forcing=forcing(parameters),
-        tracers=tracers(parameters),
-        free_surface=free_surface(parameters, grid_),
+        momentum_advection = momentum_advection(parameters),
+        tracer_advection = tracer_advection(parameters),
+        coriolis = coriolis(parameters),
+        closure = closure(parameters),
+        buoyancy = buoyancy(parameters),
+        boundary_conditions = boundary_conditions(parameters),
+        forcing = forcing(parameters),
+        tracers = tracers(parameters),
+        free_surface = free_surface(parameters, grid_),
     )
 end

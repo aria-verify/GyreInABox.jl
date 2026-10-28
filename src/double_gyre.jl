@@ -2,24 +2,24 @@
 $(TYPEDEF)
 
 Parameters for baroclinic wind and buoyancy forced double-gyre ocean circulation model.
-    
+
 $(TYPEDSIGNATURES)
 
 $(TYPEDFIELDS)
 """
 @kwdef struct DoubleGyreParameters{T} <: AbstractParameters{T}
     "Grid dimensions in longitude, latitude and depth"
-    grid_size::NTuple{3, Int} = (60, 60, 15)
+    grid_size::NTuple{3,Int} = (60, 60, 15)
     "Extent of spatial domain in longitude / °"
-    longitude_interval::NTuple{2, Int} = (0, 60)
+    longitude_interval::NTuple{2,Int} = (0, 60)
     "Extent of spatial domain in latitude / °"
-    latitude_interval::NTuple{2, Int} = (15, 75)
+    latitude_interval::NTuple{2,Int} = (15, 75)
     "Extent of spatial domain in depth / m"
-    depth_interval::NTuple{2, T} = (-1.8kilometers, 0.)
+    depth_interval::NTuple{2,T} = (-1.8kilometers, 0.0)
     "Stretching factor for hyperbolic spaced depth grid"
     depth_stretching_factor::T = 1.2
     "Dimensions of grid halo region in longitude, latitude and depth"
-    halo_size::NTuple{3, Int} = (6, 6, 3)
+    halo_size::NTuple{3,Int} = (6, 6, 3)
     "Average zonal wind velocity 10 meters above the ocean / m s⁻¹"
     u_10::T = 10.0
     "Dimensionless drag coefficient"
@@ -120,12 +120,17 @@ Relaxation boundary condition that restores surface salinity to latitude depende
 profile determined by `reference_surface_salinity`.
 """
 @inline function surface_salinity_flux(
-    i, j, grid, clock, model_fields, parameters_and_Δz::Tuple{DoubleGyreParameters{T},T}
+    i,
+    j,
+    grid,
+    clock,
+    model_fields,
+    parameters_and_Δz::Tuple{DoubleGyreParameters{T},T},
 ) where {T}
     p, Δz = parameters_and_Δz
     φ = φnode(i, j, 1, grid, Center(), Center(), Center())
     @inbounds (model_fields.S[i, j, grid.Nz] - reference_surface_salinity(φ, p)) * Δz /
-        p.τ_S
+              p.τ_S
 end
 
 """
@@ -153,7 +158,12 @@ Computes bottom surface drag at horizontal grid indices `i` and `j` for grid `gr
 model clock `clock`, with current model fields `model_fields` and parameters `p`.
 """
 @inline function bottom_meridional_drag(
-    i, j, grid, clock, model_fields, p::DoubleGyreParameters
+    i,
+    j,
+    grid,
+    clock,
+    model_fields,
+    p::DoubleGyreParameters,
 )
     @inbounds -p.μ * model_fields.v[i, j, 1]
 end
@@ -179,12 +189,17 @@ Relaxation boundary condition that restores surface temperature to latitude depe
 profile determined by `reference_surface_temperature`.
 """
 @inline function surface_temperature_flux(
-    i, j, grid, clock, model_fields, parameters_and_Δz::Tuple{DoubleGyreParameters{T},T}
+    i,
+    j,
+    grid,
+    clock,
+    model_fields,
+    parameters_and_Δz::Tuple{DoubleGyreParameters{T},T},
 ) where {T}
     p, Δz = parameters_and_Δz
     φ = φnode(i, j, 1, grid, Center(), Center(), Center())
     @inbounds (model_fields.T[i, j, grid.Nz] - reference_surface_temperature(φ, p)) * Δz /
-        p.τ_T
+              p.τ_T
 end
 
 """
@@ -215,26 +230,27 @@ function initialize!(model::Oceananigans.AbstractModel, parameters::DoubleGyrePa
     T_initial(λ, φ, z) = initial_temperature(φ, z, parameters)
     # Salinity initial condition: latitude and depth dependent halocline profile
     S_initial(λ, φ, z) = initial_salinity(φ, z, parameters)
-    set!(model; u=0.0, v=0.0, T=T_initial, S=S_initial)
+    set!(model; u = 0.0, v = 0.0, T = T_initial, S = S_initial)
     nothing
 end
 
 function grid(
-    parameters::DoubleGyreParameters{T}, architecture::Oceananigans.AbstractArchitecture
+    parameters::DoubleGyreParameters{T},
+    architecture::Oceananigans.AbstractArchitecture,
 ) where {T}
     LatitudeLongitudeGrid(
         architecture;
-        size=parameters.grid_size,
-        longitude=parameters.longitude_interval,
-        latitude=parameters.latitude_interval,
-        z=k -> hyperbolically_spaced_faces(
+        size = parameters.grid_size,
+        longitude = parameters.longitude_interval,
+        latitude = parameters.latitude_interval,
+        z = k -> hyperbolically_spaced_faces(
             k,
             parameters.grid_size[3],
             parameters.depth_interval...,
             parameters.depth_stretching_factor,
         ),
-        halo=parameters.halo_size,
-        topology=(Bounded, Bounded, Bounded),
+        halo = parameters.halo_size,
+        topology = (Bounded, Bounded, Bounded),
     )
 end
 
@@ -242,33 +258,39 @@ function boundary_conditions(parameters::DoubleGyreParameters)
     Δz = minimum_zspacing(grid(parameters, CPU()))
     no_slip_bc = ValueBoundaryCondition(0)
     u_bcs = FieldBoundaryConditions(;
-        top=FluxBoundaryCondition(zonal_wind_stress; parameters=parameters),
-        bottom=FluxBoundaryCondition(bottom_zonal_drag; discrete_form=true, parameters),
-        north=no_slip_bc,
-        south=no_slip_bc,
+        top = FluxBoundaryCondition(zonal_wind_stress; parameters = parameters),
+        bottom = FluxBoundaryCondition(bottom_zonal_drag; discrete_form = true, parameters),
+        north = no_slip_bc,
+        south = no_slip_bc,
     )
     v_bcs = FieldBoundaryConditions(;
-        bottom=FluxBoundaryCondition(
-            bottom_meridional_drag; discrete_form=true, parameters
+        bottom = FluxBoundaryCondition(
+            bottom_meridional_drag;
+            discrete_form = true,
+            parameters,
         ),
-        east=no_slip_bc,
-        west=no_slip_bc,
+        east = no_slip_bc,
+        west = no_slip_bc,
     )
     T_bcs = FieldBoundaryConditions(;
-        top=FluxBoundaryCondition(
-            surface_temperature_flux; discrete_form=true, parameters=(parameters, Δz)
+        top = FluxBoundaryCondition(
+            surface_temperature_flux;
+            discrete_form = true,
+            parameters = (parameters, Δz),
         ),
     )
     S_bcs = FieldBoundaryConditions(;
-        top=FluxBoundaryCondition(
-            surface_salinity_flux; discrete_form=true, parameters=(parameters, Δz)
+        top = FluxBoundaryCondition(
+            surface_salinity_flux;
+            discrete_form = true,
+            parameters = (parameters, Δz),
         ),
     )
-    return (; u=u_bcs, v=v_bcs, T=T_bcs, S=S_bcs)
+    return (; u = u_bcs, v = v_bcs, T = T_bcs, S = S_bcs)
 end
 
 function buoyancy(::DoubleGyreParameters)
-    SeawaterBuoyancy(; equation_of_state=TEOS10EquationOfState())
+    SeawaterBuoyancy(; equation_of_state = TEOS10EquationOfState())
 end
 
 tracers(::DoubleGyreParameters) = (:T, :S)

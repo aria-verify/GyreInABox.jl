@@ -6,7 +6,7 @@
         z_0 = 10.0
         @test GyreInABox.sigmoidal_depth_profile(Inf, z_0, ℓ, f_bottom, f_top) ≈ f_top
         @test GyreInABox.sigmoidal_depth_profile(z_0, z_0, ℓ, f_bottom, f_top) ≈
-            (f_bottom + f_top) / 2
+              (f_bottom + f_top) / 2
         @test GyreInABox.sigmoidal_depth_profile(-Inf, z_0, ℓ, f_bottom, f_top) ≈ f_bottom
     end
 
@@ -16,10 +16,18 @@
         upper = 0.0
         stretching_factor = 1.0
         @test GyreInABox.hyperbolically_spaced_faces(
-            1, size, lower, upper, stretching_factor
+            1,
+            size,
+            lower,
+            upper,
+            stretching_factor,
         ) ≈ lower
         @test GyreInABox.hyperbolically_spaced_faces(
-            size + 1, size, lower, upper, stretching_factor
+            size + 1,
+            size,
+            lower,
+            upper,
+            stretching_factor,
         ) ≈ upper
     end
 

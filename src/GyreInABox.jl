@@ -33,7 +33,7 @@ $(EXPORTS)
 3. Roquet, F.; Madec, G.; Brodeau, L. and Nycander, J. (2015).
    Defining a simplified yet “realistic” equation of state for seawater.
    Journal of Physical Oceanography 45, 2564-2579.
-4. Silvestri, S., Wagner, G. L., Campin, J. M., Constantinou, N. C., Hill, C. N., 
+4. Silvestri, S., Wagner, G. L., Campin, J. M., Constantinou, N. C., Hill, C. N.,
    Souza, A., & Ferrari, R. (2024).
    A new WENO-based momentum advection scheme for simulations of ocean mesoscale
    turbulence. Journal of Advances in Modeling Earth Systems, 16(7), e2023MS004130.
