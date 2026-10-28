@@ -12,7 +12,11 @@ makedocs(;
         edit_link = "main",
         assets = String[],
     ),
-    pages = ["Home" => "index.md"],
+    pages = Any[
+        "Home"=>"index.md",
+        "Models"=>["Wind and buoyancy forced double gyre"=>"models/double_gyre.md"],
+        "API reference"=>["Public"=>"lib/public.md", "Internals"=>"lib/internals.md"],
+    ],
     doctest = false,
 )
 
