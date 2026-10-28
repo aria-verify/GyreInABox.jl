@@ -17,7 +17,7 @@ SeawaterPolynomials = "d496a93d-167e-4197-9f49-d3af4ff8fe40"
 
 [compat]
 CairoMakie = "0.15.7"
-DocStringExtensions = "0.9.5"
+DocStringExtensions = "0.9.5, 0.10"
 JLD2 = "0.6.4"
 Oceananigans = "0.113, 0.116"
 Printf = "1.10.0"
