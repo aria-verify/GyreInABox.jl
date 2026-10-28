@@ -31,6 +31,16 @@
         @test GyreInABox.smooth_step(2.0) == 1.0
     end
 
+    @testset "triangular_ramp" begin
+        t_0, Δt, y_0, Δy = 0.0, 1.0, 1.0, 2.0
+        @test GyreInABox.triangular_ramp(t_0 - Δt, t_0, Δt, y_0, Δy) == y_0
+        @test GyreInABox.triangular_ramp(t_0, t_0, Δt, y_0, Δy) == y_0
+        @test GyreInABox.triangular_ramp(t_0 + Δt / 2, t_0, Δt, y_0, Δy) == y_0 + Δy / 2
+        @test GyreInABox.triangular_ramp(t_0 + Δt, t_0, Δt, y_0, Δy) == y_0 + Δy
+        @test GyreInABox.triangular_ramp(t_0 + 3Δt / 2, t_0, Δt, y_0, Δy) == y_0 + Δy / 2
+        @test GyreInABox.triangular_ramp(t_0 + 2Δt, t_0, Δt, y_0, Δy) == y_0
+    end
+
     @testset "HorizontalCircularRegionMask" begin
         x, y, r = 0.0, 0.0, 500.0
         mask = GyreInABox.HorizontalCircularRegionMask(x, y, r)

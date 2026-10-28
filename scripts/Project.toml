@@ -14,7 +14,7 @@ GyreInABox = {path = ".."}
 
 [compat]
 ArgParse = "1.2.0"
-CUDA = "5.11.0"
+CUDA = "5.11.0, 6"
 MPI = "0.20.0"
 NCDatasets = "0.14.15"
 Zarr = "0.10.0"
