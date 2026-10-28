@@ -99,8 +99,6 @@ function spatial_dimensions(::AbstractBarotropicVelocityVariable)
 end
 
 """
-$(TYPEDEF)
-
 Eastward (zonal or x) component of velocity.
 """
 struct EastwardVelocity <: AbstractVelocityVariable end
@@ -111,8 +109,6 @@ standard_name(::EastwardVelocity) = "eastward_sea_water_velocity"
 long_name(::EastwardVelocity) = "Eastward velocity"
 
 """
-$(TYPEDEF)
-
 Northward (meridional or y) component of velocity.
 """
 struct NorthwardVelocity <: AbstractVelocityVariable end
@@ -123,8 +119,6 @@ standard_name(::NorthwardVelocity) = "northward_sea_water_velocity"
 long_name(::NorthwardVelocity) = "Northward velocity"
 
 """
-$(TYPEDEF)
-
 Upward (vertical or z) component of velocity.
 """
 struct UpwardVelocity <: AbstractVelocityVariable end
@@ -135,8 +129,6 @@ standard_name(::UpwardVelocity) = "upward_sea_water_velocity"
 long_name(::UpwardVelocity) = "Upward velocity"
 
 """
-$(TYPEDEF)
-
 Conservative temperature tracer.
 """
 struct Temperature <: AbstractModelVariable end
@@ -153,8 +145,6 @@ function additional_attributes(::Temperature)
 end
 
 """
-$(TYPEDEF)
-
 Salinity tracer.
 """
 struct Salinity <: AbstractModelVariable end
@@ -168,8 +158,6 @@ color_map(::Salinity) = :haline
 symmetrize_limits(::Salinity) = false
 
 """
-$(TYPEDEF)
-
 Specific kinetic energy.
 
 ## Details
@@ -188,8 +176,6 @@ standard_name(::SpecificKineticEnergy) = "specific_kinetic_energy_of_sea_water"
 long_name(::SpecificKineticEnergy) = "Specific kinetic energy"
 
 """
-$(TYPEDEF)
-
 Specific turbulent kinetic energy.
 
 ## Details
@@ -206,8 +192,6 @@ standard_name(
 long_name(::SpecificTurbulentKineticEnergy) = "Specific turbulent kinetic energy"
 
 """
-$(TYPEDEF)
-
 Meridional overturning circulation (MOC) stream function.
 
 ## Details
@@ -260,8 +244,6 @@ function spatial_dimensions(::MOCStreamFunction)
 end
 
 """
-$(TYPEDEF)
-
 Barotropic stream function.
 
 ## Details
@@ -313,11 +295,7 @@ function spatial_dimensions(::BarotropicStreamFunction)
 end
 
 """
-$(TYPEDEF)
-
 Northward (meridional) heat transport.
-
-$(TYPEDSIGNATURES)
 
 ## Details
 
@@ -346,8 +324,6 @@ where ``c_p`` and ``\\rho`` are reference values of the specific heat capacity
 and density of sea water respectively.
 
 The outputted heat transport is scaled to be in terrawatt (10¹² W) units.
-
-$(TYPEDFIELDS)
 """
 @kwdef struct NorthwardHeatTransport{T} <: AbstractModelVariable
     "Sea water reference density / kg m⁻³"
@@ -384,8 +360,6 @@ function spatial_dimensions(::NorthwardHeatTransport)
 end
 
 """
-$(TYPEDEF)
-
 Eastward (zonal or x) component of barotropic velocity.
 """
 struct EastwardBarotropicVelocity <: AbstractBarotropicVelocityVariable end
@@ -400,8 +374,6 @@ end
 long_name(::EastwardBarotropicVelocity) = "Barotropic eastward velocity"
 
 """
-$(TYPEDEF)
-
 Northward (meridional or y) component of barotropic velocity.
 """
 struct NorthwardBarotropicVelocity <: AbstractBarotropicVelocityVariable end
@@ -416,8 +388,6 @@ end
 long_name(::NorthwardBarotropicVelocity) = "Barotropic northward velocity"
 
 """
-$(TYPEDEF)
-
 Free surface displacement.
 """
 struct FreeSurfaceDisplacement <: AbstractModelVariable end
@@ -443,8 +413,6 @@ const BAROTROPIC_VELOCITY_VARIABLES =
     (EastwardBarotropicVelocity(), NorthwardBarotropicVelocity())
 
 """
-$(SIGNATURES)
-
 Per-variable output attributes for `variables` to save in NetCDF output.
 """
 function output_attributes(variables::Vector{<:AbstractModelVariable})
@@ -461,8 +429,6 @@ function output_attributes(variables::Vector{<:AbstractModelVariable})
 end
 
 """
-$(SIGNATURES)
-
 Automatic variable value limits for field for variable `variable` with
 data in `field_time_series`.
 

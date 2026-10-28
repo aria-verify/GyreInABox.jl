@@ -96,8 +96,6 @@ const ZeroOrOneSpatialDimensions = Union{FixedYZ,FixedXZ,FixedXY,FixedXYZ}
     $(FUNCTIONNAME)(dimensions, grid)
 
 Label for horizontal axis for plots of field with dimensions `dimensions` on grid `grid`.
-
-$(TYPEDSIGNATURES)
 """
 function axis_xlabel end
 
@@ -115,8 +113,6 @@ end
     $(FUNCTIONNAME)(dimensions, grid)
 
 Label for vertical axis for plots of field with dimensions `dimensions` on grid `grid`.
-
-$(TYPEDSIGNATURES)
 """
 function axis_ylabel end
 
@@ -135,8 +131,6 @@ end
     $(FUNCTIONNAME)(dimensions)
 
 Axis aspect ratio for field with dimensions `dimensions`.
-
-$(TYPEDSIGNATURES)
 """
 
 axis_aspect_ratio(::SpatialDimensions) = nothing
@@ -146,8 +140,6 @@ axis_aspect_ratio(::FixedZ) = DataAspect()
     $(FUNCTIONNAME)(dimensions, grid, times)
 
 Horizontal (x) axis limits for field with dimensions `dimension` on grid `grid` and times `times`.
-
-$(TYPEDSIGNATURES)
 """
 function axis_xlimits end
 
@@ -187,8 +179,6 @@ end
     $(FUNCTIONNAME)(dimensions, grid, times)
 
 Vertical (y) axis limits for field with dimensions `dimension` on grid `grid` and times `times`.
-
-$(TYPEDSIGNATURES)
 """
 function axis_ylimits end
 

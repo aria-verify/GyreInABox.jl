@@ -3,16 +3,12 @@ const DEFAULT_SCHEDULE = TimeInterval(1day)
 abstract type AbstractModelOutput{S} end
 
 """
-$(TYPEDEF)
-
 Specification of point model outputs to write out during simulation.
 
 ## Details
 
 Used to record values of fields associated with specified variables at one
 or more spatial points and a defined time schedule.
-
-$(TYPEDFIELDS)
 """
 struct PointModelOutput{V,S,T} <: AbstractModelOutput{S}
     "Model variables to record as part of output"
@@ -24,11 +20,7 @@ struct PointModelOutput{V,S,T} <: AbstractModelOutput{S}
 end
 
 """
-$(TYPEDEF)
-
 Specification of field model outputs to write out during simulation.
-
-$(TYPEDFIELDS)
 """
 struct FieldModelOutput{V,S,P} <: AbstractModelOutput{S}
     "Model variables to record as part of output"
@@ -40,8 +32,6 @@ struct FieldModelOutput{V,S,P} <: AbstractModelOutput{S}
 end
 
 """
-$(SIGNATURES)
-
 Horizontal (latitude-longitude or x-y) slice output.
 
 ## Details
@@ -61,8 +51,6 @@ function horizontal_slice_output(;
 end
 
 """
-$(SIGNATURES)
-
 Vertical (x-depth or longitude-depth) slice output.
 
 ## Details
@@ -83,8 +71,6 @@ function x_depth_slice_output(;
 end
 
 """
-$(SIGNATURES)
-
 Vertical (y-depth or latitude-depth) slice output.
 
 ## Details
@@ -105,8 +91,6 @@ function y_depth_slice_output(;
 end
 
 """
-$(SIGNATURES)
-
 Free surface fields output.
 
 ## Details
@@ -122,8 +106,6 @@ function free_surface_output(; schedule = DEFAULT_SCHEDULE)
 end
 
 """
-$(SIGNATURES)
-
 Depth averaged output.
 
 ## Details
@@ -140,8 +122,6 @@ function depth_averaged_output(;
 end
 
 """
-$(SIGNATURES)
-
 Horizontally averaged fields output
 
 ## Details
@@ -159,8 +139,6 @@ function horizontally_averaged_output(;
 end
 
 """
-$(SIGNATURES)
-
 Spatially averaged output.
 
 ## Details
@@ -177,8 +155,6 @@ function spatially_averaged_output(;
 end
 
 """
-$(SIGNATURES)
-
 Meridional overturning circulation (MOC) and barotropic stream functions output.
 
 ## Details
@@ -192,8 +168,6 @@ function stream_functions_output(; schedule = DEFAULT_SCHEDULE)
 end
 
 """
-$(SIGNATURES)
-
 Meridional overturning circulation (MOC) strength output.
 
 ## Details
@@ -219,8 +193,6 @@ function moc_strength_at_y_output(; y_or_latitude, schedule = DEFAULT_SCHEDULE)
 end
 
 """
-$(SIGNATURES)
-
 Northward heat transport output.
 
 ## Details
@@ -239,8 +211,6 @@ function northward_heat_transport_at_y_output(; y_or_latitude, schedule = DEFAUL
 end
 
 """
-$(SIGNATURES)
-
 Label for output type `output` to use in naming output file and registering output writer.
 """
 function label(output::FieldModelOutput)
@@ -275,8 +245,6 @@ function label(schedule::Oceananigans.Utils.AbstractSchedule)
 end
 
 """
-$(SIGNATURES)
-
 Spatial grid indices output type `output` records fields at for grid `grid`.
 """
 function indices(output::FieldModelOutput, grid)
@@ -293,8 +261,6 @@ end
 indices(output::AbstractModelOutput, grid) = (:, :, :)
 
 """
-$(SIGNATURES)
-
 Named tuple of outputs deriving from fields in `model` to
 record for output `model_output`.
 """
@@ -323,22 +289,16 @@ function outputs(model_output::PointModelOutput, ::Oceananigans.AbstractModel)
 end
 
 """
-$(SIGNATURES)
-
 Time schedule to record output type at.
 """
 schedule(output::AbstractModelOutput) = output.schedule
 
 """
-$(SIGNATURES)
-
 Variables to record output type for.
 """
 variables(output::AbstractModelOutput) = output.variables
 
 """
-$(SIGNATURES)
-
 Filename to record outputs to.
 
 ## Details
@@ -366,8 +326,6 @@ end
     $(FUNCTIONNAME)(output_writer_type)
 
 File extension to use with `output_writer_type`.
-
-$(TYPEDSIGNATURES)
 """
 function extension end
 

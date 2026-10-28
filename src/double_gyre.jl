@@ -1,11 +1,5 @@
 """
-$(TYPEDEF)
-
 Parameters for baroclinic wind and buoyancy forced double-gyre ocean circulation model.
-
-$(TYPEDSIGNATURES)
-
-$(TYPEDFIELDS)
 """
 @kwdef struct DoubleGyreParameters{T} <: AbstractParameters{T}
     "Grid dimensions in longitude, latitude and depth"
@@ -67,8 +61,6 @@ end
 """
 Initial temperature at latitude `φ` and depth `z` with parameters `p`.
 
-$(SIGNATURES)
-
 ## Details
 
 Computes a latitude and depth dependent initial temperature with thermocline like
@@ -82,8 +74,6 @@ end
 
 """
 Initial salinity at latitude `φ` and depth `z` with parameters `p`.
-
-$(SIGNATURES)
 
 ## Details
 
@@ -102,8 +92,6 @@ end
 """
 Reference surface salinity for restoring surface salinity boundary condition as
 function of latitude `φ` and parameters `p`.
-
-$(SIGNATURES)
 """
 @inline function reference_surface_salinity(φ, p::DoubleGyreParameters)
     p.S_0 + p.ΔS * sin(2π * (φ - p.φ_S) / p.Lφ_S)
@@ -111,8 +99,6 @@ end
 
 """
 Surface salinity flux in g kg⁻¹ m s⁻¹.
-
-$(SIGNATURES)
 
 ## Details
 
@@ -136,8 +122,6 @@ end
 """
 Bottom surface drag on zonal velocity component in m² s⁻².
 
-$(SIGNATURES)
-
 ## Details
 
 Computes bottom surface drag at horizontal grid indices `i` and `j` for grid `grid` and
@@ -149,8 +133,6 @@ end
 
 """
 Bottom surface drag on meridional velocity component in m² s⁻².
-
-$(SIGNATURES)
 
 ## Details
 
@@ -171,8 +153,6 @@ end
 """
 Reference surface temperature for restoring surface temperature boundary condition as
 function of latitude `φ`` and parameters `p`.
-
-$(SIGNATURES)
 """
 @inline function reference_surface_temperature(φ, p::DoubleGyreParameters)
     p.T_polar + (p.T_equatorial - p.T_polar) * cosd(φ)^2
@@ -180,8 +160,6 @@ end
 
 """
 Surface temperature flux in  K m s⁻¹.
-
-$(SIGNATURES)
 
 ## Details
 
@@ -204,8 +182,6 @@ end
 
 """
 Maximal surface wind stress given parameters `p` in m² s⁻².
-
-$(SIGNATURES)
 """
 @inline function max_surface_wind_stress(p::DoubleGyreParameters)
     p.ρ_a / p.ρ_s * p.c_d * p.u_10^2
@@ -213,8 +189,6 @@ end
 
 """
 Zonal wind stress applied as surface (flux) boundary condition to velocity field.
-
-$(SIGNATURES)
 
 ## Details
 

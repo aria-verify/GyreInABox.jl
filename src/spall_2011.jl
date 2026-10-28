@@ -1,9 +1,5 @@
 """
-$(TYPEDEF)
-
 Parameters for simplified ocean gyre model from Spall (2011; 2012).
-
-$(TYPEDSIGNATURES)
 
 ## Details
 
@@ -17,8 +13,6 @@ Real-valued parameters of model controlling initial and boundary conditions.
 2. Spall, M. A., 2012: Influences of Precipitation on Water Mass Transformation and
    Deep Convection. J. Phys. Oceanogr., 42, 1684--1700,
    https://doi.org/10.1175/JPO-D-11-0230.1.
-
-$(TYPEDFIELDS)
 """
 @kwdef struct Spall2011Parameters{T,S} <: AbstractParameters{T}
     "Grid dimensions in x, y and depth"

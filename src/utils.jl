@@ -2,8 +2,6 @@
 Sigmoidal depth profile which smoothly varies from `f_top` at `z >> z_0` to `f_bottom` at
 `z << z_0` with length scale for smooth transition `ℓ` and offset for midpoint of
 smooth transition `z_0`.
-
-$(SIGNATURES)
 """
 function sigmoidal_depth_profile(z, z_0, ℓ, f_bottom, f_top)
     f_bottom + (f_top - f_bottom) * (1 + tanh((z - z_0) / ℓ)) / 2
@@ -13,8 +11,6 @@ end
 Compute hyperbolically spaced grid face coordinate at index `k` for coordinate
 discretized into `size` cells from lower value `lower` to upper value `upper`
 with stretching factor `stretching_factor`.
-
-$(SIGNATURES)
 """
 function hyperbolically_spaced_faces(k, size, lower, upper, stretching_factor)
     lower +
@@ -51,8 +47,6 @@ function triangular_ramp(t::T, t_0::T, Δt::T, y_0::T, Δy::T) where {T}
 end
 
 """
-$(TYPEDEF)
-
 Mask for horizontal circular region with center at `(x_center, y_center)`
 and radius `radius`.
 """
@@ -72,8 +66,6 @@ function Base.summary(mask::HorizontalCircularRegionMask)
 end
 
 """
-$(SIGNATURES)
-
 Convert string `s` in CamelCase to snake_case.
 """
 camel_to_snake_case(s::String) = join(lowercase.(split(s, r"(?<=[a-z])(?=[A-Z])")), "_")

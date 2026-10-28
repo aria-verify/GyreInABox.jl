@@ -75,8 +75,6 @@ Construct tracer advection scheme for ocean gyre model with parameters `paramete
 function tracer_advection end
 
 """
-    $(FUNCTIONNAME)(parameters, grid)
-
 Construct free surface scheme for ocean gyre model with grid `grid` and parameters `parameters`.
 """
 function free_surface(::AbstractParameters, grid::AbstractGrid)
@@ -85,8 +83,6 @@ end
 
 """
 Set up ocean gyre model with parameters `parameters` on grid with architecture `architecture`.
-
-$(SIGNATURES)
 """
 function setup_model(parameters::AbstractParameters; architecture = CPU())
     grid_ = grid(parameters, architecture)

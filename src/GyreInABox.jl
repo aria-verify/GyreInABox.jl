@@ -54,6 +54,26 @@ using CairoMakie
 using Printf
 using JLD2
 
+@template FUNCTIONS = """
+                      $(DOCSTRING)
+
+                      $(TYPEDSIGNATURES)
+                      """
+
+@template METHODS = """
+                    $(SIGNATURES)
+
+                    $(DOCSTRING)
+                    """
+
+@template TYPES = """
+                  $(TYPEDEF)
+
+                  $(DOCSTRING)
+
+                  $(TYPEDFIELDS)
+                  """
+
 export DoubleGyreParameters, Spall2011Parameters
 export SimulationConfiguration
 export EastwardVelocity, NorthwardVelocity, UpwardVelocity
