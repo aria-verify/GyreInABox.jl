@@ -241,7 +241,7 @@ function field(::MOCStreamFunction, model)
     # units 10⁶ m³ s⁻¹ = sverdrup
     Field(
         CumulativeIntegral(
-            Field(Integral(1e-6 * model.velocities.v; dims = 1));
+            Field(Integral(eltype(model)(1e-6) * model.velocities.v; dims = 1));
             dims = 3,
             reverse = true,
         ),
@@ -294,7 +294,10 @@ function field(::BarotropicStreamFunction, model)
     # Scale velocities by 1 / 10⁶ so doubly spatially integrated field is in
     # units 10⁶ m³ s⁻¹ = sverdrup
     Field(
-        CumulativeIntegral(Field(Integral(1e-6 * model.velocities.v; dims = 3)); dims = 1),
+        CumulativeIntegral(
+            Field(Integral(eltype(model)(1e-6) * model.velocities.v; dims = 3));
+            dims = 1,
+        ),
     )
 end
 short_name(::BarotropicStreamFunction) = "Ψᴮ"
@@ -356,9 +359,11 @@ end
 function field(variable::NorthwardHeatTransport, model)
     Field(
         Integral(
-            1e-12 * # Scale so integrated field is in units TW
-            variable.sea_water_density *
-            variable.sea_water_specific_heat_capacity *
+            eltype(model)( # Ensure output field retains eltype of model
+                1e-12 * # Scale so integrated field is in units TW
+                variable.sea_water_density *
+                variable.sea_water_specific_heat_capacity,
+            ) *
             model.velocities.v *
             model.tracers.T;
             dims = (1, 3),
