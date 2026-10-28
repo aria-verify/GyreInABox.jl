@@ -1,8 +1,6 @@
 """
 Get properties for customizing plot axis rendering for `variable` with
 `processor` on `grid` and `times`.
-
-$(SIGNATURES)
 """
 function axis_properties(variable::AbstractModelVariable, processor, grid, times)
     dimensions = spatial_dimensions(variable, processor)
@@ -20,8 +18,6 @@ end
 """
 Compute dimensions of plot grid for `n_fields` fields with maximum number of
 grid columns `max_columns`.
-
-$(SIGNATURES)
 """
 function plot_grid_dimensions(n_fields, max_columns)
     n_columns = min(n_fields, max_columns)
@@ -33,8 +29,6 @@ end
 Compute figure row and column indices for axis for field variable indexed by
 `variable_index` for plot grid with `n_columns` columns starting at row
 `row_offset`.
-
-$(SIGNATURES)
 """
 function plot_row_column_indices(variable_index, n_columns, row_offset)
     row = (variable_index - 1) ÷ n_columns + row_offset
@@ -46,8 +40,6 @@ end
 Setup figure object of appropriate size for `n_rows` rows and `n_columns` of
 axis objects each of size `(axis_width, axis_height)` plus a top margin of
 `title_height` for inclusion of a figure title.
-
-$(SIGNATURES)
 """
 function setup_figure(n_rows, n_columns, axis_width, axis_height, title_height)
     Figure(;
@@ -68,8 +60,6 @@ Plots visual representation of `field_timeseries` appropriate for `plot_output`
 output type on `axis`, optionally using observable `time_index` to index into
 `field_timeseries` and with plot configuration options for variable represented
 in `field_timeseries` specified in `config`.
-
-$(TYPEDSIGNATURES)
 """
 function plot_field_on_axis! end
 
@@ -78,8 +68,6 @@ function plot_field_on_axis! end
 
 Constructs figure title for `plot_output` output type optionally using information
 about simulation times in `times` and observable time index `time_index`.
-
-$(TYPEDSIGNATURES)
 """
 function get_title end
 
@@ -98,8 +86,6 @@ Saves plot file output for `plot_output` and `model_output` visualized on
 Makie figure `fig` with model outputs recorded to a file in directory
 `output_directory` and with stem `output_filename_stem`, optionally
 using simulation times `times` and observable `time_index`.
-
-$(TYPEDSIGNATURES)
 """
 function save_output end
 
@@ -108,21 +94,15 @@ function save_output end
 
 Indicates whether `plot_output` type is compatible with field with spatial dimensions
 `dimensions` as a boolean.
-
-$(TYPEDSIGNATURES)
 """
 function is_compatible end
 
 """
-$(TYPEDEF)
-
 Animated field plot output type.
 
 ## Details
 
 Specifies recording an animation of model output fields recorded during a simulation.
-
-$(TYPEDFIELDS)
 """
 @kwdef struct AnimationPlotOutput <: AbstractPlotOutput
     "Frame rate (frames per second) to record animation at."
@@ -174,8 +154,6 @@ is_compatible(::AnimationPlotOutput, ::TwoSpatialDimensions) = true
 is_compatible(::AnimationPlotOutput, ::ZeroOrOneSpatialDimensions) = false
 
 """
-$(TYPEDEF)
-
 Field temporal average plot output type.
 
 ## Details
@@ -183,8 +161,6 @@ Field temporal average plot output type.
 Specifies plotting temporal average of model output fields recorded during a simulation.
 
 The temporal averages are plotted as filled contour plots.
-
-$(TYPEDFIELDS)
 """
 @kwdef struct TemporalAveragePlotOutput{L<:Union{Int,AbstractVector}} <: AbstractPlotOutput
     """
@@ -233,15 +209,11 @@ is_compatible(::TemporalAveragePlotOutput, ::TwoSpatialDimensions) = true
 is_compatible(::TemporalAveragePlotOutput, ::ZeroOrOneSpatialDimensions) = false
 
 """
-$(TYPEDEF)
-
 Time series plot output type.
 
 ## Details
 
 Specifies plotting time series of zero or one dimensional model output fields recorded during a simulation.
-
-$(TYPEDFIELDS)
 """
 @kwdef struct TimeSeriesPlotOutput{L<:Union{Int,AbstractVector}} <: AbstractPlotOutput
     """
@@ -312,8 +284,6 @@ is_compatible(::TimeSeriesPlotOutput, ::TwoSpatialDimensions) = false
 is_compatible(::TimeSeriesPlotOutput, ::ZeroOrOneSpatialDimensions) = true
 
 """
-$(SIGNATURES)
-
 Create plot of fields recorded as model output.
 
 ## Details

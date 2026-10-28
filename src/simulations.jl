@@ -1,16 +1,10 @@
 """
-$(TYPEDEF)
-
 Configuration for ocean gyre model simulation
-
-$(TYPEDSIGNATURES)
 
 ## Details
 
 Variables defining overall configuration of simulation such as architecture to run on,
 temporal discretization and outputs to record.
-
-$(TYPEDFIELDS)
 """
 @kwdef struct SimulationConfiguration{T,A,P,W}
     "Computational architecture to run simulation on"
@@ -51,8 +45,6 @@ end
 
 """
 Add callback for progress updates as configured in `configuration` in `simulation`.
-
-$(SIGNATURES)
 """
 function add_progress_message_callback!(
     simulation::Oceananigans.Simulation,
@@ -85,8 +77,6 @@ end
 Register output writers for output types in `output_types` in `simulation` using
 output filenames with directory `output_directory` and stem `output_filename_stem`
 and using output format associated `output_writer_type`.
-
-$(SIGNATURES)
 """
 function add_output_writers!(
     simulation::Oceananigans.Simulation,
@@ -129,8 +119,6 @@ end
 
 """
 Set up simulation for model `model` with configuration `configuration`.
-
-$(SIGNATURES)
 """
 function setup_simulation(
     model::Oceananigans.AbstractModel,
@@ -162,8 +150,6 @@ end
 """
 Setup and initialize model then setup and run simulation with parameters `parameters`
 and configuration `configuration`.
-
-$(SIGNATURES)
 """
 function run_simulation(
     parameters::AbstractParameters,
@@ -185,8 +171,6 @@ end
 
 """
 Plot outputs of fields recorded as simulation output.
-
-$(SIGNATURES)
 
 ## Details
 

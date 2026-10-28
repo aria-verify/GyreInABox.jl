@@ -1,11 +1,44 @@
 """
-$(TYPEDEF)
-
 Parameters for baroclinic wind and buoyancy forced double-gyre ocean circulation model.
 
-$(TYPEDSIGNATURES)
+## Details
 
-$(TYPEDFIELDS)
+Model of wind and buoyancy forced ocean gyre adapted from MITgcm documentation
+[baroclinic ocean gyre
+example](https://mitgcm.readthedocs.io/en/latest/examples/baroclinic_gyre/baroclinic_gyre.html)
+implemented using Oceananigans (Ramadhan et al. 2020).
+
+Compared to MITgcm example, beyond the change in the underlying software framework, some
+key differences in the (default) model configuration are
+
+- The model uses a seawater buoyancy formulation with tracer fields corresponding to
+  salinity and (potential) temperature used to determine the buoyancy using a non-linear
+  (polynomial) equation of state (Roquet et al. 2015).
+- A weighted essentially non-oscillatory numerical scheme is used for momentum advection
+  (Silvestri et al. 2024).
+- The turbulence closure / parameterization used for small-scale turbulent mixing is a
+  convective adjustment turbulent kinetic energy (CATKE) scheme (Wagner et al. 2025).
+- Adaptive time stepping is used based on controlling advective CFL number.
+
+## References
+
+1. MITgcm contributors (2025). MITgcm/MITgcm: checkpoint69e (Version checkpoint69e).
+   Zenodo. https://doi.org/10.5281/zenodo.15320163
+2. Ramadhan, A., Wagner, G., Hill, C., Campin, J. M., Churavy, V., Besard, T.,
+   Souza, A., Edelman, A., Ferrari, R. & Marshall, J. (2020).
+   Oceananigans. jl: Fast and friendly geophysical fluid dynamics on GPUs.
+   Journal of Open Source Software, 5(53).
+3. Roquet, F.; Madec, G.; Brodeau, L. and Nycander, J. (2015).
+   Defining a simplified yet “realistic” equation of state for seawater.
+   Journal of Physical Oceanography 45, 2564-2579.
+4. Silvestri, S., Wagner, G. L., Campin, J. M., Constantinou, N. C., Hill, C. N.,
+   Souza, A., & Ferrari, R. (2024).
+   A new WENO-based momentum advection scheme for simulations of ocean mesoscale
+   turbulence. Journal of Advances in Modeling Earth Systems, 16(7), e2023MS004130.
+5. Wagner, G. L., Hillier, A., Constantinou, N. C., Silvestri, S., Souza, A.,
+   Burns, K. J., Hill, C., Campin, J-M., Marshall, J. & Ferrari, R. (2025).
+   Formulation and calibration of CATKE, a one-equation parameterization for microscale
+   ocean mixing. Journal of Advances in Modeling Earth Systems, 17(4), e2024MS004522.
 """
 @kwdef struct DoubleGyreParameters{T} <: AbstractParameters{T}
     "Grid dimensions in longitude, latitude and depth"
@@ -67,8 +100,6 @@ end
 """
 Initial temperature at latitude `φ` and depth `z` with parameters `p`.
 
-$(SIGNATURES)
-
 ## Details
 
 Computes a latitude and depth dependent initial temperature with thermocline like
@@ -82,8 +113,6 @@ end
 
 """
 Initial salinity at latitude `φ` and depth `z` with parameters `p`.
-
-$(SIGNATURES)
 
 ## Details
 
@@ -102,8 +131,6 @@ end
 """
 Reference surface salinity for restoring surface salinity boundary condition as
 function of latitude `φ` and parameters `p`.
-
-$(SIGNATURES)
 """
 @inline function reference_surface_salinity(φ, p::DoubleGyreParameters)
     p.S_0 + p.ΔS * sin(2π * (φ - p.φ_S) / p.Lφ_S)
@@ -111,8 +138,6 @@ end
 
 """
 Surface salinity flux in g kg⁻¹ m s⁻¹.
-
-$(SIGNATURES)
 
 ## Details
 
@@ -136,8 +161,6 @@ end
 """
 Bottom surface drag on zonal velocity component in m² s⁻².
 
-$(SIGNATURES)
-
 ## Details
 
 Computes bottom surface drag at horizontal grid indices `i` and `j` for grid `grid` and
@@ -149,8 +172,6 @@ end
 
 """
 Bottom surface drag on meridional velocity component in m² s⁻².
-
-$(SIGNATURES)
 
 ## Details
 
@@ -171,8 +192,6 @@ end
 """
 Reference surface temperature for restoring surface temperature boundary condition as
 function of latitude `φ`` and parameters `p`.
-
-$(SIGNATURES)
 """
 @inline function reference_surface_temperature(φ, p::DoubleGyreParameters)
     p.T_polar + (p.T_equatorial - p.T_polar) * cosd(φ)^2
@@ -180,8 +199,6 @@ end
 
 """
 Surface temperature flux in  K m s⁻¹.
-
-$(SIGNATURES)
 
 ## Details
 
@@ -204,8 +221,6 @@ end
 
 """
 Maximal surface wind stress given parameters `p` in m² s⁻².
-
-$(SIGNATURES)
 """
 @inline function max_surface_wind_stress(p::DoubleGyreParameters)
     p.ρ_a / p.ρ_s * p.c_d * p.u_10^2
@@ -213,8 +228,6 @@ end
 
 """
 Zonal wind stress applied as surface (flux) boundary condition to velocity field.
-
-$(SIGNATURES)
 
 ## Details
 
