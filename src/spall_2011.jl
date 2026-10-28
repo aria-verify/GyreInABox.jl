@@ -483,14 +483,14 @@ function plot_domain_and_forcing(
     lines!(
         ax3,
         zonal_surface_wind_stress.(
-            nothing,
+            0.0,
             y,
             parameters.surface_wind_forcing_ramp_up_timescale,
             (parameters,),
         ),
         y,
     )
-    lines!(ax4, surface_evaporation_minus_precipitation.(y, (parameters,)), y)
+    lines!(ax4, surface_evaporation_minus_precipitation.(y, 0.0, (parameters,)), y)
     resize_to_layout!(figure)
     figure
 end
