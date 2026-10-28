@@ -4,14 +4,38 @@ using JLD2
 using Oceananigans
 using Oceananigans.DistributedComputations
 using Oceananigans.Units
-using CUDA
 using MPI
 using NCDatasets
 using Zarr
-using Dates: now, format
+if Sys.isapple() && Sys.ARCH === :aarch64
+    using Metal
+elseif !isnothing(Sys.which("nvidia-smi"))
+    using CUDA
+elseif !isnothing(Sys.which("rocminfo"))
+    using AMDGPU
+end
 
 const _OUTPUT_WRITER_TYPES =
-    Dict{String,Type}("JLD2" => JLD2Writer, "NetCDF" => NetCDFWriter, "Zarr" => ZarrWriter)
+    Dict{Symbol,Type}(:jld2 => JLD2Writer, :netcdf => NetCDFWriter, :zarr => ZarrWriter)
+
+const _FLOATING_POINT_TYPES = Dict{Symbol,Type}(:float64 => Float64, :float32 => Float32)
+
+function get_architecture(architecture_arg)
+    if architecture_arg === :cpu
+        CPU()
+    elseif architecture_arg == :cuda
+        @assert CUDA.functional()
+        GPU(CUDA.CUDABackend(always_inline = true))
+    elseif architecture_arg == :metal
+        @assert Metal.functional()
+        GPU(Metal.MetalBackend())
+    elseif architecture_arg === :rocm
+        @assert AMDGPU.functional()
+        GPU(AMDGPU.ROCBackend())
+    else
+        error("Unrecognised architecture argument $architecture_arg")
+    end
+end
 
 function parse_commandline()
     s = ArgParseSettings()
@@ -61,9 +85,11 @@ function parse_commandline()
         help = "Directory to write outputs to"
         arg_type = String
         default = "."
-        "--cpu"
-        help = "Run on CPU (rather than GPU, the default)"
-        action = :store_true
+        "--architecture", "-A"
+        help = "Architecture to run simulations with"
+        arg_type = Symbol
+        default = :cpu
+        range_tester = x -> x ∈ (:cpu, :cuda, :rocm, :metal)
         "--mpi"
         help = "Use MPI to distribute computations"
         action = :store_true
@@ -79,9 +105,14 @@ function parse_commandline()
         arg_type = String
         "--output-format", "-F"
         help = "Format to use for writing model outputs - one of JLD2, NetCDF or Zarr"
-        arg_type = String
-        default = "JLD2"
+        arg_type = Symbol
+        default = :jld2
         range_tester = x -> x ∈ keys(_OUTPUT_WRITER_TYPES)
+        "--floating-point-type", "-T"
+        help = "Floating point type to use for simulation"
+        arg_type = Symbol
+        default = :float64
+        range_tester = x -> x ∈ keys(_FLOATING_POINT_TYPES)
     end
 
     return parse_args(s)
@@ -94,7 +125,15 @@ function main()
 
     @onrank 0 @info "Parsed args\n  " * join(("$arg = $val" for (arg, val) in args), "\n  ")
 
-    architecture = args["cpu"] ? CPU() : GPU()
+    if args["architecture"] === :metal && args["floating-point-type"] !== :float32
+        error("Metal GPUs only support float32 - use --floating-point-type float32")
+    end
+
+    architecture = get_architecture(args["architecture"])
+
+    FT = _FLOATING_POINT_TYPES[args["floating-point-type"]]
+
+    Oceananigans.defaults.FloatType = FT
 
     if args["mpi"]
         partition = Partition(; x = args["ranks-along-x"], y = Equal())
@@ -104,10 +143,11 @@ function main()
 
     output_interval = args["output-interval-days"] * 1day
 
-    snapshot_schedule = TimeInterval(output_interval)
-    average_schedule = AveragedTimeInterval(output_interval; window = output_interval)
+    snapshot_schedule = TimeInterval(FT(output_interval))
+    average_schedule =
+        AveragedTimeInterval(FT(output_interval); window = FT(output_interval))
 
-    parameters = Spall2011Parameters(;
+    parameters = Spall2011Parameters{FT,typeof(args["free-surface-substeps"])}(;
         grid_size = Tuple(args["grid-size"]),
         surface_temperature_restoring_strength = args["surface-temperature-restoring-strength"],
         northern_basin_surface_evaporation = args["northern-basin-surface-evaporation"],
