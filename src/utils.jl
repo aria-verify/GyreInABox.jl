@@ -36,7 +36,7 @@ Piecewise linear function, with constant value `y_0` for `t < t_0` and `t >= t_0
 linearly ramping from `y_0` to `y_0 + Δy` for `t_0 <= t < t_0 + Δt` and linearly ramping
 from `y_0 + Δy` to `y_0` for `t_0 + Δt <= t < t_0 + 2Δt`.
 """
-function triangular_ramp(t::T, t_0::T, Δt::T, y_0::T, Δy::T) where {T}
+function triangular_ramp(t, t_0, Δt, y_0, Δy)
     if t >= t_0 + 2Δt || t < t_0
         y_0
     elseif t < t_0 + Δt
