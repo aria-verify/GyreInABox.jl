@@ -104,9 +104,9 @@ Real-valued parameters of model controlling initial and boundary conditions.
 end
 
 function zonal_surface_wind_stress(
-    x::T,
-    y::T,
-    t::T,
+    x,
+    y,
+    t,
     parameters::Spall2011Parameters{T,S},
 ) where {T,S}
     (parameters.zonal_wind_stress / parameters.sea_water_density) *
@@ -115,14 +115,14 @@ function zonal_surface_wind_stress(
 end
 
 function meridional_surface_wind_stress(
-    x::T,
-    y::T,
-    t::T,
+    x,
+    y,
+    t,
     parameters::Spall2011Parameters{T,S},
 ) where {T,S}
     (parameters.meridional_wind_stress / parameters.sea_water_density) *
     smooth_step(t / parameters.surface_wind_forcing_ramp_up_timescale) *
-    cos(π * x / parameters.domain_size_x)
+    cos(T(π) * x / parameters.domain_size_x)
 end
 
 function sill_profile(y, center, width, height)
@@ -218,8 +218,8 @@ end
 end
 
 @inline function surface_evaporation_minus_precipitation(
-    y::T,
-    t::T,
+    y,
+    t,
     p::Spall2011Parameters{T,S},
 ) where {T,S}
     y <= p.sill_center_y && return zero(T)
@@ -248,12 +248,7 @@ end
               surface_evaporation_minus_precipitation(y, t, p)
 end
 
-@inline function southern_region_mask(
-    x::T,
-    y::T,
-    z::T,
-    p::Spall2011Parameters{T,S},
-) where {T,S}
+@inline function southern_region_mask(x, y, z, p::Spall2011Parameters{T,S}) where {T,S}
     if p.southern_boundary_window_width == 0
         T(y < p.southern_region_extent)
     else
@@ -266,8 +261,8 @@ end
 end
 
 @inline function vertically_stratified_temperature(
-    z::T,
-    surface_temperature::T,
+    z,
+    surface_temperature,
     p::Spall2011Parameters{T,S},
 ) where {T,S}
     surface_temperature +
@@ -275,13 +270,7 @@ end
     (p.thermal_expansion_coefficient * T(gravitational_acceleration))
 end
 
-@inline function southern_region_temperature_target(
-    x::T,
-    y::T,
-    z::T,
-    t::T,
-    p::Spall2011Parameters{T,S},
-) where {T,S}
+@inline function southern_region_temperature_target(x, y, z, t, p::Spall2011Parameters)
     vertically_stratified_temperature(z, p.southern_surface_temperature, p)
 end
 
@@ -322,7 +311,7 @@ end
     )
 end
 
-function boundary_conditions(parameters::Spall2011Parameters{T}) where {T}
+function boundary_conditions(parameters::Spall2011Parameters)
     u_bcs = FieldBoundaryConditions(;
         top = FluxBoundaryCondition(zonal_surface_wind_stress; parameters),
     )
