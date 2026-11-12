@@ -34,10 +34,10 @@ parameters = Spall2011Parameters(grid_size=(50, 100, 25))
 configuration = SimulationConfiguration(
     simulation_time=60days,
     output_filename_stem = "spall_2011_gyre_model",
-    output_types=(
+    output_types=[
         y_depth_slice_output(; x_or_longitude=500kilometer),
         horizontal_slice_output(; depth=0.)
-    ),
+    ],
     progress_message_interval=1000
 )
 run_simulation(parameters, configuration)
