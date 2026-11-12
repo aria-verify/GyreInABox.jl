@@ -177,8 +177,11 @@ function construct_output_types(
         (
             horizontally_averaged_output(; mask = mask, schedule = average_schedule),
             (
-                depth_profile_output(; x_or_longitude = p.x, y_or_latitude = p.y) for
-                p in profile_points(parameters)
+                depth_profile_output(;
+                    x_or_longitude = p.x,
+                    y_or_latitude = p.y,
+                    schedule = snapshot_schedule,
+                ) for p in profile_points(parameters)
             )...,
         ),
     )
