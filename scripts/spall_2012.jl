@@ -130,6 +130,18 @@ function parse_commandline()
     return parse_args(s)
 end
 
+function profile_points(parameters)
+    [
+        (x = 0.05 * parameters.domain_size_x, y = parameters.sill_center_y),
+        (x = 0.95 * parameters.domain_size_x, y = parameters.sill_center_y),
+        (
+            x = parameters.domain_size_x / 2,
+            y = parameters.domain_size_y - parameters.domain_size_x / 2,
+        ),
+        (x = parameters.domain_size_x / 2, y = 0.975 * parameters.domain_size_y),
+    ]
+end
+
 function construct_output_types(
     output_interval_days::Float64,
     output_type_groups::Vector{Symbol},
@@ -162,7 +174,13 @@ function construct_output_types(
     )
     (:depth_profile in output_type_groups) && append!(
         output_types,
-        (horizontally_averaged_output(; mask = mask, schedule = average_schedule),),
+        (
+            horizontally_averaged_output(; mask = mask, schedule = average_schedule),
+            (
+                depth_profile_output(; x_or_longitude = p.x, y_or_latitude = p.y) for
+                p in profile_points(parameters)
+            )...,
+        ),
     )
     (:surface_slice in output_type_groups) && append!(
         output_types,
