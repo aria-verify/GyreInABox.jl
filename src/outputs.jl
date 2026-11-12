@@ -19,6 +19,9 @@ struct PointModelOutput{V,S,T} <: AbstractModelOutput{S}
     points::Matrix{T}
 end
 
+PointModelOutput(variables::Tuple, schedule, points) =
+    PointModelOutput(collect(variables), schedule, points)
+
 """
 Specification of field model outputs to write out during simulation.
 """
@@ -30,6 +33,9 @@ struct FieldModelOutput{V,S,P} <: AbstractModelOutput{S}
     "Optional spatial processor(s) to apply to fields associated with variables"
     processor::P
 end
+
+FieldModelOutput(variables::Tuple, schedule, processor) =
+    FieldModelOutput(collect(variables), schedule, processor)
 
 """
 Horizontal (latitude-longitude or x-y) slice output.
@@ -247,13 +253,13 @@ function label(output::PointModelOutput)
 end
 
 function label(
-    variables::Tuple{Vararg{AbstractModelVariable}},
+    variables::Vector{<:AbstractModelVariable},
     schedule::Oceananigans.Utils.AbstractSchedule,
 )
     "variables_" * label(variables) * "_at_" * label(schedule)
 end
 
-function label(variables::Tuple{Vararg{AbstractModelVariable}})
+function label(variables::Vector{<:AbstractModelVariable})
     join((short_name(v) for v in variables), "_")
 end
 
