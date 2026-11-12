@@ -125,6 +125,27 @@ function parse_commandline()
             :free_surface,
             :stream_function,
         ]
+        "--initial-timestep-minutes"
+        help = "Initial simulation timestep / minutes"
+        arg_type = Float64
+        default = 10.0
+        "--maximum-timestep-minutes"
+        help = "Maximum simulation timestep / minutes"
+        arg_type = Float64
+        default = 60.0
+        "--timestep-wizard-update-interval"
+        help = "Number of iterations between each adaptive timestep update"
+        arg_type = Int
+        default = 10
+        "--timestep-wizard-max-change"
+        help = "Maximum relative increase (multiplier) for timestep in adaptation"
+        arg_type = Float64
+        default = 1.1
+        "--progress-message-interval"
+        help = "Number of iterations between each progress message update"
+        arg_type = Int
+        default = 1000
+
     end
 
     return parse_args(s)
@@ -266,14 +287,14 @@ function main()
     configuration = SimulationConfiguration(;
         architecture = architecture,
         simulation_time = args["simulation-years"]*365day,
-        initial_timestep = 10minute,
-        maximum_timestep = 60minute,
-        wizard_max_change = 1.1,
-        wizard_update_interval = 10,
+        initial_timestep = args["initial-timestep-minutes"] * minute,
+        maximum_timestep = args["maximum-timestep-minutes"] * minute,
+        wizard_max_change = args["timestep-wizard-max-change"],
+        wizard_update_interval = args["timestep-wizard-update-interval"],
         output_directory = output_directory,
         output_filename_stem = "spall_2012_gyre_model",
         output_types = construct_output_types(args, FT, parameters),
-        progress_message_interval = 1000,
+        progress_message_interval = args["progress-message-interval"],
         pickup_checkpoint = args["pickup-checkpoint"],
         output_writer_type = _OUTPUT_WRITER_TYPES[args["output-format"]],
     )
