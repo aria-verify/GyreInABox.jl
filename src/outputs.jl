@@ -19,6 +19,9 @@ struct PointModelOutput{V,S,T} <: AbstractModelOutput{S}
     points::Matrix{T}
 end
 
+PointModelOutput(variables::Tuple, schedule, points::Matrix) =
+    PointModelOutput(collect(variables), schedule, points)
+
 """
 Specification of field model outputs to write out during simulation.
 """
@@ -30,6 +33,9 @@ struct FieldModelOutput{V,S,P} <: AbstractModelOutput{S}
     "Optional spatial processor(s) to apply to fields associated with variables"
     processor::P
 end
+
+FieldModelOutput(variables::Tuple, schedule, processor::AbstractSpatialProcessor) =
+    FieldModelOutput(collect(variables), schedule, processor)
 
 """
 Horizontal (latitude-longitude or x-y) slice output.
@@ -123,7 +129,7 @@ Records two-dimensional free surface (displacement and barotropic velocity) fiel
 """
 function free_surface_output(; schedule = DEFAULT_SCHEDULE)
     FieldModelOutput(
-        (FreeSurfaceDisplacement(), BAROTROPIC_VELOCITY_VARIABLES...),
+        [FreeSurfaceDisplacement(), BAROTROPIC_VELOCITY_VARIABLES...],
         schedule,
         nothing,
     )
@@ -188,7 +194,7 @@ Records two-dimensional fields corresponding to MOC and barotropic stream functi
 See [`MOCStreamFunction`](@ref) and [`BarotropicStreamFunction`](@ref) for more details
 """
 function stream_functions_output(; schedule = DEFAULT_SCHEDULE)
-    FieldModelOutput((MOCStreamFunction(), BarotropicStreamFunction()), schedule, nothing)
+    FieldModelOutput([MOCStreamFunction(), BarotropicStreamFunction()], schedule, nothing)
 end
 
 """
@@ -207,7 +213,7 @@ strength is measured at respectively, where ``\\Psi^M`` is computed as described
 """
 function moc_strength_at_y_output(; y_or_latitude, schedule = DEFAULT_SCHEDULE)
     FieldModelOutput(
-        (MOCStreamFunction(),),
+        [MOCStreamFunction()],
         schedule,
         [
             SpatialMaximumProcessor((3,)),
@@ -228,7 +234,7 @@ The northward heat transport is computed here as described in [`NorthwardHeatTra
 """
 function northward_heat_transport_at_y_output(; y_or_latitude, schedule = DEFAULT_SCHEDULE)
     FieldModelOutput(
-        (NorthwardHeatTransport(),),
+        [NorthwardHeatTransport()],
         schedule,
         SpatialSliceProcessor(; y = SlicedSpatialDimension(y_or_latitude)),
     )
@@ -247,13 +253,13 @@ function label(output::PointModelOutput)
 end
 
 function label(
-    variables::Tuple{Vararg{AbstractModelVariable}},
+    variables::Vector{<:AbstractModelVariable},
     schedule::Oceananigans.Utils.AbstractSchedule,
 )
     "variables_" * label(variables) * "_at_" * label(schedule)
 end
 
-function label(variables::Tuple{Vararg{AbstractModelVariable}})
+function label(variables::Vector{<:AbstractModelVariable})
     join((short_name(v) for v in variables), "_")
 end
 
