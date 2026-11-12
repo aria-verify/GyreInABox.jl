@@ -19,7 +19,7 @@ struct PointModelOutput{V,S,T} <: AbstractModelOutput{S}
     points::Matrix{T}
 end
 
-PointModelOutput(variables::Tuple, schedule, points) =
+PointModelOutput(variables::Tuple, schedule, points::Matrix) =
     PointModelOutput(collect(variables), schedule, points)
 
 """
@@ -34,7 +34,7 @@ struct FieldModelOutput{V,S,P} <: AbstractModelOutput{S}
     processor::P
 end
 
-FieldModelOutput(variables::Tuple, schedule, processor) =
+FieldModelOutput(variables::Tuple, schedule, processor::AbstractSpatialProcessor) =
     FieldModelOutput(collect(variables), schedule, processor)
 
 """
