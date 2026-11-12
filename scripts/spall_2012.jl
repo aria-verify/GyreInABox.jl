@@ -69,10 +69,18 @@ function parse_commandline()
         help = "Number of simulated year to run for"
         arg_type = Float64
         default = 100.0
-        "--output-interval-days", "-I"
-        help = "Interval at which to record outputs at in simulated days"
+        "--averaged-output-interval-days", "-I"
+        help = "Interval at which to record time-averaged outputs at in simulated days"
         arg_type = Float64
         default = 30.0
+        "--slice-output-interval-days", "-J"
+        help = "Interval at which to record snapshotted slice outputs at in simulated days"
+        arg_type = Float64
+        default = 30.0
+        "--profile-output-interval-days", "-K"
+        help = "Interval at which to record snapshotted profile outputs at in simulated days"
+        arg_type = Float64
+        default = 1.0
         "--grid-size", "-G"
         help = "Grid dimensions in x, y and depth"
         nargs = 3
@@ -164,15 +172,19 @@ function profile_points(parameters)
 end
 
 function construct_output_types(
-    output_interval_days::Float64,
+    averaged_output_interval_days::Float64,
+    slice_output_interval_days::Float64,
+    profile_output_interval_days::Float64,
     output_type_groups::Vector{Symbol},
     FT::DataType,
     parameters::Spall2011Parameters,
 )
-    output_interval = output_interval_days * 1day
-    snapshot_schedule = TimeInterval(FT(output_interval))
-    average_schedule =
-        AveragedTimeInterval(FT(output_interval); window = FT(output_interval))
+    slice_schedule = TimeInterval(FT(slice_output_interval_days * day))
+    profile_schedule = TimeInterval(FT(profile_output_interval_days * day))
+    average_schedule = AveragedTimeInterval(
+        FT(averaged_output_interval_days * day);
+        window = FT(averaged_output_interval_days * day),
+    )
     mask = GyreInABox.northern_basin_mask(parameters)
     output_types = GyreInABox.FieldModelOutput[]
     (:scalar in output_type_groups) && append!(
@@ -201,34 +213,34 @@ function construct_output_types(
                 depth_profile_output(;
                     x_or_longitude = p.x,
                     y_or_latitude = p.y,
-                    schedule = snapshot_schedule,
+                    schedule = profile_schedule,
                 ) for p in profile_points(parameters)
             )...,
         ),
     )
     (:surface_slice in output_type_groups) && append!(
         output_types,
-        (horizontal_slice_output(; depth = 0.0, schedule = snapshot_schedule),),
+        (horizontal_slice_output(; depth = 0.0, schedule = slice_schedule),),
     )
     (:central_slice in output_type_groups) && append!(
         output_types,
         (
             horizontal_slice_output(;
                 depth = (parameters.bottom_depth + parameters.sill_height),
-                schedule = TimeInterval(output_interval),
+                schedule = TimeInterval(slice_schedule),
             ),
             x_depth_slice_output(;
                 y_or_latitude = parameters.sill_center_y,
-                schedule = snapshot_schedule,
+                schedule = slice_schedule,
             ),
             y_depth_slice_output(;
                 x_or_longitude = (parameters.domain_size_x / 2),
-                schedule = snapshot_schedule,
+                schedule = slice_schedule,
             ),
         ),
     )
     (:free_surface in output_type_groups) &&
-        append!(output_types, (free_surface_output(; schedule = snapshot_schedule),))
+        append!(output_types, (free_surface_output(; schedule = slice_schedule),))
     (:stream_function in output_type_groups) &&
         append!(output_types, (stream_functions_output(; schedule = average_schedule),))
     return output_types
@@ -236,7 +248,9 @@ end
 
 construct_output_types(args, FT::DataType, parameters::Spall2011Parameters) =
     construct_output_types(
-        args["output-interval-days"],
+        args["averaged-output-interval-days"],
+        args["slice-output-interval-days"],
+        args["profile-output-interval-days"],
         args["output-types"],
         FT,
         parameters,
