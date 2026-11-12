@@ -103,10 +103,10 @@ using GyreInABox
 
 parameters = DoubleGyreParameters()
 configuration = SimulationConfiguration(
-    output_types=(
+    output_types=[
         x_depth_slice_output(; y_or_latitude=45.),
         horizontal_slice_output(; depth=0.)
-    ),
+    ],
     progress_message_interval=400
 )
 run_simulation(parameters, configuration)

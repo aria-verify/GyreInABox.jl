@@ -6,7 +6,7 @@ Configuration for ocean gyre model simulation
 Variables defining overall configuration of simulation such as architecture to run on,
 temporal discretization and outputs to record.
 """
-@kwdef struct SimulationConfiguration{T,A,P,W}
+@kwdef struct SimulationConfiguration{T,A,P,W,O}
     "Computational architecture to run simulation on"
     architecture::A = Oceananigans.CPU()
     "Time to simulate for / s"
@@ -30,11 +30,11 @@ temporal discretization and outputs to record.
     "Maximum relative time step change in each wizard update"
     wizard_max_change::T = 1.5
     "Output types to record during simulation"
-    output_types::Tuple = (
+    output_types::Vector{O} = [
         horizontal_slice_output(depth = 0.0),
         free_surface_output(),
         stream_functions_output(),
-    )
+    ]
     "Whether to checkpoint simulation at end"
     checkpoint_at_end::Bool = true
     "Optional path to checkpoint file to pickup initial simulation state from"
@@ -80,7 +80,7 @@ and using output format associated `output_writer_type`.
 """
 function add_output_writers!(
     simulation::Oceananigans.Simulation,
-    output_types::Tuple,
+    output_types::Vector,
     output_directory::String,
     output_filename_stem::String,
     output_writer_type::Type{<:Oceananigans.AbstractOutputWriter},

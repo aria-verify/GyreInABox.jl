@@ -5,6 +5,7 @@
         horizontal_slice_output(; depth = 0.0),
         x_depth_slice_output(; y_or_latitude = 0.0),
         y_depth_slice_output(; x_or_longitude = 0.0),
+        depth_profile_output(; x_or_longitude = 0.0, y_or_latitude = 0.0),
         depth_averaged_output(),
         free_surface_output(),
         stream_functions_output(),
