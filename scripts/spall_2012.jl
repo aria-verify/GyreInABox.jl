@@ -113,10 +113,92 @@ function parse_commandline()
         arg_type = Symbol
         default = :float64
         range_tester = x -> x ∈ keys(_FLOATING_POINT_TYPES)
+        "--output-types"
+        help = "Output type groups to include in simulation output"
+        arg_type = Symbol
+        nargs = '*'
+        default = [
+            :scalar,
+            :depth_profile,
+            :surface_slice,
+            :central_slice,
+            :free_surface,
+            :stream_function,
+        ]
     end
 
     return parse_args(s)
 end
+
+function construct_output_types(
+    output_interval_days::Float64,
+    output_type_groups::Vector{Symbol},
+    FT::DataType,
+    parameters::Spall2011Parameters,
+)
+    output_interval = output_interval_days * 1day
+    snapshot_schedule = TimeInterval(FT(output_interval))
+    average_schedule =
+        AveragedTimeInterval(FT(output_interval); window = FT(output_interval))
+    mask = GyreInABox.northern_basin_mask(parameters)
+    output_types = GyreInABox.FieldModelOutput[]
+    (:scalar in output_type_groups) && append!(
+        output_types,
+        (
+            moc_strength_at_y_output(;
+                y_or_latitude = parameters.sill_center_y,
+                schedule = average_schedule,
+            ),
+            northward_heat_transport_at_y_output(;
+                y_or_latitude = parameters.sill_center_y,
+                schedule = average_schedule,
+            ),
+            spatially_averaged_output(;
+                variables = (SpecificKineticEnergy(),),
+                mask = mask,
+                schedule = average_schedule,
+            ),
+        ),
+    )
+    (:depth_profile in output_type_groups) && append!(
+        output_types,
+        (horizontally_averaged_output(; mask = mask, schedule = average_schedule),),
+    )
+    (:surface_slice in output_type_groups) && append!(
+        output_types,
+        (horizontal_slice_output(; depth = 0.0, schedule = snapshot_schedule),),
+    )
+    (:central_slice in output_type_groups) && append!(
+        output_types,
+        (
+            horizontal_slice_output(;
+                depth = (parameters.bottom_depth + parameters.sill_height),
+                schedule = TimeInterval(output_interval),
+            ),
+            x_depth_slice_output(;
+                y_or_latitude = parameters.sill_center_y,
+                schedule = snapshot_schedule,
+            ),
+            y_depth_slice_output(;
+                x_or_longitude = (parameters.domain_size_x / 2),
+                schedule = snapshot_schedule,
+            ),
+        ),
+    )
+    (:free_surface in output_type_groups) &&
+        append!(output_types, (free_surface_output(; schedule = snapshot_schedule),))
+    (:stream_function in output_type_groups) &&
+        append!(output_types, (stream_functions_output(; schedule = average_schedule),))
+    return output_types
+end
+
+construct_output_types(args, FT::DataType, parameters::Spall2011Parameters) =
+    construct_output_types(
+        args["output-interval-days"],
+        args["output-types"],
+        FT,
+        parameters,
+    )
 
 function main()
     args = parse_commandline()
@@ -141,12 +223,6 @@ function main()
         architecture = Distributed(architecture; partition)
     end
 
-    output_interval = args["output-interval-days"] * 1day
-
-    snapshot_schedule = TimeInterval(FT(output_interval))
-    average_schedule =
-        AveragedTimeInterval(FT(output_interval); window = FT(output_interval))
-
     parameters = Spall2011Parameters{FT,typeof(args["free-surface-substeps"])}(;
         grid_size = Tuple(args["grid-size"]),
         surface_temperature_restoring_strength = args["surface-temperature-restoring-strength"],
@@ -158,8 +234,6 @@ function main()
         use_eddy_closure = args["use-eddy-closure"],
         split_explicit_free_surface_substeps = args["free-surface-substeps"],
     )
-
-    mask = GyreInABox.northern_basin_mask(parameters)
 
     output_directory = args["output-directory"]
 
@@ -177,37 +251,7 @@ function main()
         wizard_update_interval = 10,
         output_directory = output_directory,
         output_filename_stem = "spall_2012_gyre_model",
-        output_types = (
-            horizontal_slice_output(; depth = 0.0, schedule = snapshot_schedule),
-            horizontal_slice_output(;
-                depth = (parameters.bottom_depth + parameters.sill_height),
-                schedule = TimeInterval(output_interval),
-            ),
-            x_depth_slice_output(;
-                y_or_latitude = parameters.sill_center_y,
-                schedule = snapshot_schedule,
-            ),
-            y_depth_slice_output(;
-                x_or_longitude = (parameters.domain_size_x / 2),
-                schedule = snapshot_schedule,
-            ),
-            free_surface_output(; schedule = snapshot_schedule),
-            stream_functions_output(; schedule = average_schedule),
-            moc_strength_at_y_output(;
-                y_or_latitude = parameters.sill_center_y,
-                schedule = average_schedule,
-            ),
-            northward_heat_transport_at_y_output(;
-                y_or_latitude = parameters.sill_center_y,
-                schedule = average_schedule,
-            ),
-            spatially_averaged_output(;
-                variables = (SpecificKineticEnergy(),),
-                mask = mask,
-                schedule = average_schedule,
-            ),
-            horizontally_averaged_output(; mask = mask, schedule = average_schedule),
-        ),
+        output_types = construct_output_types(args, FT, parameters),
         progress_message_interval = 1000,
         pickup_checkpoint = args["pickup-checkpoint"],
         output_writer_type = _OUTPUT_WRITER_TYPES[args["output-format"]],
