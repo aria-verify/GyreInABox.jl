@@ -47,7 +47,7 @@ export NorthwardHeatTransport
 export FieldModelOutput, PointModelOutput
 export horizontal_slice_output, x_depth_slice_output, y_depth_slice_output
 export depth_averaged_output, horizontally_averaged_output, spatially_averaged_output
-export free_surface_output, stream_functions_output
+export depth_profile_output, free_surface_output, stream_functions_output
 export moc_strength_at_y_output, northward_heat_transport_at_y_output
 export setup_model, initialize!, setup_simulation
 export AnimationPlotOutput, TemporalAveragePlotOutput, TimeSeriesPlotOutput

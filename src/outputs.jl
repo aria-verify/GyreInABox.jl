@@ -91,6 +91,30 @@ function y_depth_slice_output(;
 end
 
 """
+Vertical profile (depth dependent) output at a horizontal grid point.
+
+## Details
+
+Records vertical slices through model fields at specified eastward x / longitude
+and northward y / latitude coordinates.
+"""
+function depth_profile_output(;
+    x_or_longitude,
+    y_or_latitude,
+    schedule = DEFAULT_SCHEDULE,
+    variables = VELOCITY_AND_TRACER_VARIABLES,
+)
+    FieldModelOutput(
+        variables,
+        schedule,
+        SpatialSliceProcessor(;
+            x = SlicedSpatialDimension(x_or_longitude),
+            y = SlicedSpatialDimension(y_or_latitude),
+        ),
+    )
+end
+
+"""
 Free surface fields output.
 
 ## Details
