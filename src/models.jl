@@ -98,8 +98,8 @@ function setup_model(parameters::AbstractParameters; architecture=CPU())
         closure=closure(parameters),
         buoyancy=buoyancy(parameters),
         boundary_conditions=boundary_conditions(parameters),
-        forcing=forcing(parameters),
         tracers=tracers(parameters),
         free_surface=free_surface(parameters, grid_),
     )
 end
+        #forcing=forcing(parameters),

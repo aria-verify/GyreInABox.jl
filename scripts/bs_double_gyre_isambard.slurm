@@ -4,7 +4,7 @@
 #SBATCH --output=%x-%j.out
 #SBATCH --gpus=1
 #SBATCH --ntasks-per-gpu=1
-#SBATCH --time=1:00:00
+#SBATCH --time=24:00:00
 
 PROJECT_DIR=$PROJECTDIR/ryapat/GyreInABox.jl
 EXPERIMENT_DIR=$SCRATCH/$SLURM_JOB_NAME/job-$SLURM_JOB_ID
@@ -15,15 +15,15 @@ RUN_SCRIPT_PATH=$SCRIPTS_DIR/spall_dg.jl
 # Set up environment variables - project directory variable may need to be
 # adjusted to wherever GyreInABox.jl repository is cloned to
 
-TEMPERATURE_RESTORING=20.0
+TEMPERATURE_RESTORING=20
 SURFACE_EVAPORATION=-9.25e-8
-SIMULATION_YEARS=10
+SIMULATION_YEARS=20
 OUTPUT_INTERVAL_DAYS=30
 PLOT_START_TIME_DAYS=1800  # Needs to be a multiple of OUTPUT_INTERVAL_DAYS
 PLOT_END_TIME_DAYS=$((SIMULATION_YEARS*365))
 OUTPUT_FORMAT=NetCDF
 SILL_HEIGHT=0
-GRID="40 60 30"
+GRID="800 1200 30"
 
 POST_PROCESS_SCRIPT_PATH=$SCRIPTS_DIR/spall_2012_post_process.jl
 

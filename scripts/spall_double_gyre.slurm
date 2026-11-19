@@ -68,7 +68,7 @@ echo "Running simulation for $SIMULATION_DAYS years..."
 
 julia --project=$SCRIPTS_DIR $RUN_SCRIPT_PATH \
     -R $TEMPERATURE_RESTORING -E $SURFACE_EVAPORATION \
-    -Y $SIMULATION_DAYS -I $OUTPUT_INTERVAL_DAYS -O $EXPERIMENT_DIR \
+    -Y $SIMULATION_DAYS -I $OUTPUT_INTERVAL_YEARS -O $EXPERIMENT_DIR \
     -F $OUTPUT_FORMAT -H $SILL_HEIGHT -G $GRID
 
 # Post process simulation outputs in experiment directory
