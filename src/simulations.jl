@@ -38,7 +38,7 @@ $(TYPEDFIELDS)
     wizard_max_change::T = 1.5
     "Output types to record during simulation"
     output_types::Tuple = (
-        horizontal_slice_output(depth=0.0), free_surface_output(), stream_functions_output()
+        horizontal_slice_output(depth=0.0), free_surface_output()
     )
     "Whether to checkpoint simulation at end"
     checkpoint_at_end::Bool = true
