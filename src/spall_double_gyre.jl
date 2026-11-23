@@ -85,11 +85,11 @@ $(TYPEDFIELDS)
     "Height of sill on sea floor / m"
     sill_height::T = 1kilometers
     "Width of slope on side walls of domain / m"
-    side_slope_width::T = 300kilometers
+    side_slope_width::T = 250kilometers
     "Depth at which slope on side walls starts / m"
     side_slope_top_depth::T = -250meters
     "Width of slope on top wall of domain / m"
-    top_slope_width::T = 300kilometers
+    top_slope_width::T = 250kilometers
     "Whether to use CATKE rather than scalar vertical diffusivity turbulence closure"
     use_catke_closure::Bool = false
     "Whether to include a dynamic Smagorinsky closure as a parameterization for eddy viscosity and diffusivity"
@@ -249,11 +249,15 @@ end
 #end
 
 @inline function surface_temperature_flux(
-    i, j, grid, clock, model_fields, p::SpallDGParameters
+    i, j, grid, t, clock, model_fields, p::SpallDGParameters
 )
     x = xnode(i, j, 1, grid, Center(), Center(), Center())
     y = ynode(i, j, 1, grid, Center(), Center(), Center())
-    @inbounds (model_fields.T[i, j, grid.Nz] - reference_surface_temperature(x, y, p)) * (
+    year = 360 * 24 * 3600
+    t_max = 180 * 24 * 3600
+    amp = 8
+    t_ref = reference_surface_temperature(x, y, p) + amp * cospi(2 * (t - t_max) / year)
+    @inbounds (model_fields.T[i, j, grid.Nz] - t_ref * (
         p.surface_temperature_restoring_strength /
         (p.sea_water_density * p.sea_water_heat_capacity)
     )
